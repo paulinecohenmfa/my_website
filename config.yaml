@@ -82,28 +82,28 @@ params:
     enable: yes
     showcase:
       - image: Cohen_Pauline.jpg
-        subtitle: Ipsum Dolor Sit Amet
+        subtitle: Nice to meet you
         title: Me
         url: blogs/me
-      - image: pic02.jpg
-        subtitle: Feugiat Amet Tempus
-        title: Tempus
-        url: blogs/tempus
-      - image: pic03.jpg
-        subtitle: Lorem Etiam Nullam
-        title: Magna
-        url: blogs/magna
-      - image: pic04.jpg
-        subtitle: Nisl Sed Aliquam
-        title: Ipsum
-        url: blogs/ipsum
-      - image: pic05.jpg
-        subtitle: Ipsum Dolor Sit Amet
-        title: Consequat
-        url: blogs/ipsum
-      - image: pic06.jpg
-        subtitle: Feugiat Amet Tempus
-        title: Etiam
+      - image: Paris.jpg
+        subtitle: Paris, France
+        title: My home town
+        url: blogs/Paris
+      - image: Nice.jpg
+        subtitle: Nice, France
+        title: Where I studied
+        url: blogs/Nice
+      - image: London.jpg
+        subtitle: London, United Kingdom
+        title: Where I am now
+        url: blogs/London
+      - image: Sunset.jpg
+        subtitle: Exchange program, San Diego, United States
+        title: Sunset in San Diego
+        url: blogs/Sunset
+      - image: GrandCanyon.jpg
+        subtitle: Grand Canyon, United States
+        title: Discovering the wonders of the United States
         url: blogs/ipsum
   two:
     buttonText: Get Started
