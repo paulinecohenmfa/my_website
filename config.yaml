@@ -87,11 +87,11 @@ params:
         url: blogs/me
       - image: Paris.jpg
         subtitle: Paris, France
-        title: My home town
+        title: Where I am from 
         url: blogs/Paris
       - image: Nice.jpg
         subtitle: Nice, France
-        title: Where I studied
+        title: Where I studied Finance
         url: blogs/Nice
       - image: London.jpg
         subtitle: London, United Kingdom
@@ -108,11 +108,8 @@ params:
   two:
     buttonText: Get Started
     enable: yes
-    subtitle: "Nullam et orci eu lorem consequat tincidunt vivamus et sagittis libero.
-      \n    Mauris aliquet magna magna sed nunc rhoncus pharetra. \n    Pellentesque
-      condimentum sem. In efficitur ligula tate urna. Maecenas laoreet massa vel lacinia
-      pellentesque lorem ipsum dolor. \n    Nullam et orci eu lorem consequat tincidunt.
-      Vivamus et sagittis libero.\n    Mauris aliquet magna magna sed nunc rhoncus
-      amet pharetra et feugiat tempus."
-    title: Massa libero
+    subtitle: "Hello, thank you so much for visiting my website. I am Pauline and I did a MSc in Financial Markets in the South of France. I am currently enrolled in the Master in Financial Analysis at the London Business School and I am happy to show you various works I did at LBS but also during my previous master in France. Feel free to reach out if you have any questions."
+    image: stocks_market.jpg
+    url: blogs/stocks_market
+    title: About me
     url: blogs
