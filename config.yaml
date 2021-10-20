@@ -58,7 +58,7 @@ params:
         label: LinkedIn
         url: https://www.linkedin.com/in/pauline-cohen-82318a170
   image: ''
-  name: Your name
+  name: Pauline Cohen
   navigation:
     button1:
       - name: Get Started
@@ -110,7 +110,7 @@ params:
     enable: yes
     subtitle: "Hello, thank you so much for visiting my website. I am Pauline and I did a MSc in Financial Markets in the South of France. I am currently enrolled in the Master in Financial Analysis at the London Business School and I am happy to show you various works I did at LBS but also during my previous master in France. Feel free to reach out if you have any questions."
     title: About me
-    showcase:
-      - image: stocks_market.jpg
-      - url: blogs/stocks_market
+    image: stocks_market.jpg
+    url: blogs/stocks_market
+    slug : me
       
