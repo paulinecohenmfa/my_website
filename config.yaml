@@ -14,18 +14,18 @@ params:
   blog: {}
   contact:
     address:
-      - city: City, ST 00000
-        country: Country
+      - city: Paris
+        country: France
         street: Street
         title: Address
     buttonClear: Clear
     buttonSend: Send message
     email:
-      - email: example@domain.com
+      - email: pcohen.mfa2022@london.edu 
         title: Email
     enable: yes
     phone:
-      - phone: (000) 000-0000 x1234
+      - phone: +33 6 19 48 60 78
         title: Phone
   custom_css: []
   custom_js: []
@@ -35,7 +35,7 @@ params:
     text: Please visit [this page](/)
   favicon: favicon.ico
   footer:
-    copyright: Company Name
+    copyright: London Business School 
     enable: yes
     quicklinks:
       - alt: HTML5 UP
@@ -53,10 +53,10 @@ params:
         url: https://www.instagram.com
       - icon: fa-github
         label: GitHub
-        url: https://www.github.com
+        url: https://github.com/paulinecohenmfa
       - icon: fa-linkedin
         label: LinkedIn
-        url: https://www.linkedin.com
+        url: https://www.linkedin.com/in/pauline-cohen-82318a170
   image: ''
   name: Your name
   navigation:
@@ -81,7 +81,7 @@ params:
   tiles:
     enable: yes
     showcase:
-      - image: pic01.jpg
+      - image: Cohen_Pauline
         subtitle: Ipsum Dolor Sit Amet
         title: Aliquam
         url: blogs/aliquam
