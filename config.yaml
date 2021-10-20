@@ -16,7 +16,6 @@ params:
     address:
       - city: Paris
         country: France
-        street: Street
         title: Address
     buttonClear: Clear
     buttonSend: Send message
@@ -24,9 +23,6 @@ params:
       - email: pcohen.mfa2022@london.edu 
         title: Email
     enable: yes
-    phone:
-      - phone: +33 6 19 48 60 78
-        title: Phone
   custom_css: []
   custom_js: []
   description: 
