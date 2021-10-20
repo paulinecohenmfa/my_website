@@ -84,11 +84,11 @@ params:
       - image: Cohen_Pauline.jpg
         subtitle: Nice to meet you
         title: Me
-        url: blogs/me
+        url: blogs/aliquam
       - image: Paris.jpg
         subtitle: Paris, France
-        title: Where I am from 
-        url: blogs/Paris
+        title: Risk Return
+        url: blogs/risk_return
       - image: Nice.jpg
         subtitle: Nice, France
         title: Where I studied Finance
