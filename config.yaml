@@ -104,7 +104,7 @@ params:
       - image: GrandCanyon.jpg
         subtitle: Grand Canyon, United States
         title: Discovering the wonders of the United States
-        url: blogs/ipsum
+        url: blogs/GrandCanyon
   two:
     buttonText: Get Started
     enable: yes
