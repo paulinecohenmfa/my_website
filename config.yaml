@@ -83,21 +83,29 @@ params:
         subtitle: London Business School
         title: What I do now
         url: blogs/lbs
-      - image: Sunset.jpg
-        subtitle: Sunset in San Diego
-        title: Exchange program, San Diego, United States
-        url: https://www.sandiego.edu
       - image: Nice.jpg
         subtitle: EDHEC Business School, Nice, France
         title: MSc in Financial Markets
         url: https://master.edhec.edu/msc-financial-engineering
+      - image: Sunset.jpg
+        subtitle: Sunset in San Diego
+        title: Exchange program, San Diego, United States
+        url: https://www.sandiego.edu
+      - image: astronomy.jpg
+        subtitle: Shoot for the moon. Even if you miss, you'll land among the stars.
+        title: A passion for astronomy
+        url: blogs/astronomy
+      - image: cinema.jpg
+        subtitle: Be ready...
+        title: My favorite movie and director
+        url: https://www.youtube.com/watch?v=Z5jvQwwHQNY
       - image: financial_markets.jpg
         subtitle: Estimating the volatility of stock markets
         title: R Studio Project 
         url: blogs/edhec  
       - image: montecarlo.jpg
-        subtitle: R Studio Project
-        title: Monte Carlo simulations
+        subtitle: Monte Carlo simulations
+        title: R Studio Project
         url: blogs/montecarlo
       - image: assets.jpg
         subtitle: Illiquidity of Assets
@@ -111,4 +119,4 @@ params:
     enable: yes
     subtitle: "Hello, thank you so much for visiting my website. I am Pauline and I did a MSc in Financial Markets in the South of France. I am currently enrolled in the Master in Financial Analysis at the London Business School and I am happy to show you various works I did at LBS but also during my previous master in France. Feel free to reach out if you have any questions."
     title: About me
-    url: blogs
+    url: https://pauline-portfolio.netlify.app/blogs/resume/
