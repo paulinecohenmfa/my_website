@@ -1,0 +1,221 @@
+---
+categories:  
+- ""    #the front matter should be like the one found in, e.g., blog2.md. It cannot be like the normal Rmd we used
+- ""
+date: "2021-09-30"
+description: Estimating the volatility of stock markets # the title that will show up once someone gets to this page
+draft: false
+image: stocks.jpg # save picture in \static\img\blogs. Acceptable formats= jpg, jpeg, or png . Your iPhone pics wont work
+
+keywords: ""
+slug: edhec # slug is the shorthand URL address... no spaces plz
+title: Estimating the volatility of stock markets
+---
+
+
+
+<p>Please find above a project I worked on during my previous master at EDHEC Business School.</p>
+<div id="moving-average-models" class="section level1">
+<h1>1) Moving Average Models</h1>
+<div id="a" class="section level2">
+<h2>a)</h2>
+<p>I download the prices for the S&amp;P 100 equity index between 2005-06-29 and 2021-10-01. Then I computed the daily log-returns and filter out the NA values.</p>
+<pre class="r"><code>library(quantmod)
+getSymbols.warning4.0=FALSE
+
+bench_ticker &lt;- &quot;^OEX&quot;
+
+beg_dte &lt;- &quot;2005-06-29&quot;
+end_dte &lt;- &quot;2021-10-01&quot;
+
+bench_daily_data_xts &lt;- getSymbols(bench_ticker, from=beg_dte, to=end_dte,auto.assign = FALSE)
+bench_daily_price_xts &lt;- Ad(bench_daily_data_xts)
+
+bench_daily_return_xts &lt;- ROC(bench_daily_price_xts)
+bench_daily_return_xts &lt;- na.omit(bench_daily_return_xts)</code></pre>
+<p>Then I plot the prices and log-returns.</p>
+<pre class="r"><code>par(mfrow=c(2,1))
+
+plot(bench_daily_price_xts, main=&quot;S&amp;P100 Daily Prices&quot;)
+
+plot(bench_daily_return_xts, main=&quot;S&amp;P100 Daily Log-Returns&quot;)</code></pre>
+<p><img src="/blogs/EDHEC_Project_files/figure-html/unnamed-chunk-2-1.png" width="672" /></p>
+<p>From the log-returns plot, I see several volatility clusters. These volatility clusters correspond to periods with large positive or negative returns.</p>
+</div>
+<div id="b" class="section level2">
+<h2>b)</h2>
+<p>I computed the annualized log-returns.</p>
+<pre class="r"><code>bench_daily_return_avr &lt;- apply(bench_daily_return_xts, 2, mean)
+bench_daily_return_avr_ann &lt;- bench_daily_return_avr * 252
+round(bench_daily_return_avr_ann, 4)</code></pre>
+<pre><code>## OEX.Adjusted 
+##       0.0773</code></pre>
+<p>Then I computed the volatility over the entire data-set.</p>
+<pre class="r"><code>bench_daily_return_vol &lt;- apply(bench_daily_return_xts, 2, sd)
+bench_daily_return_vol_ann &lt;- bench_daily_return_vol * sqrt(252)
+round(bench_daily_return_vol_ann, 4)</code></pre>
+<pre><code>## OEX.Adjusted 
+##       0.1934</code></pre>
+</div>
+<div id="c" class="section level2">
+<h2>c)</h2>
+<p>I use the Moving Average Model to estimate the volatility of the S&amp;P 100 with two different lags: n = 20 and n = 60 over the entire data-set. I implement a loop that will compute the MA Model.
+As we have high frequency data, the sample average can be set equal to 0.</p>
+<pre class="r"><code>delta &lt;- 1/252
+T &lt;- nrow(bench_daily_return_xts)
+
+vol &lt;- xts(order.by=index(bench_daily_return_xts))
+
+vol_MA20 &lt;- rep(NA, T)
+
+for (i in 20:T) {
+  vol_MA20[i]&lt;-1/sqrt(delta)* sd(bench_daily_return_xts[(i-19):i])
+}
+
+vol_MA60 &lt;- rep(NA, T)
+
+for (i in 60:T) {
+  vol_MA60[i]&lt;-1/sqrt(delta)* sd(bench_daily_return_xts[(i-59):i])
+}
+
+vol$MA20 &lt;- vol_MA20
+vol$MA60 &lt;- vol_MA60</code></pre>
+<p>Then I plot the results.</p>
+<pre class="r"><code>p_MA &lt;- plot(100*vol[,c(&quot;MA60&quot;,&quot;MA20&quot;)],col=c(&quot;red&quot;, &quot;black&quot;),
+             main=&quot;S&amp;P 100 Volatility Estimates with \n MA Models&quot;)
+
+lag60&lt;-60
+lag20&lt;-20
+
+addLegend(&quot;topleft&quot;, legend.names=c(paste(&quot;Moving Average Model with lag&quot;, 
+          as.character(lag60), sep=&quot; &quot;),paste(&quot;Moving Average Model with lag&quot;, 
+          as.character(lag20), sep=&quot; &quot;)),lty=1,lwd=2,bg=&quot;white&quot;,bty=&quot;o&quot;)</code></pre>
+<p><img src="/blogs/EDHEC_Project_files/figure-html/unnamed-chunk-6-1.png" width="90%" style="display: block; margin: auto;" /></p>
+<p>We can observe that the Moving Average model with a lag of 20 is more volatile than the one with a lag of 60. It is not surprising as a low number of sample data might lead to more volatile volatility estimates than a high number of sample data: a smaller time window leads to a more sensitive estimator.</p>
+</div>
+<div id="d" class="section level2">
+<h2>d)</h2>
+<p>I use the Exponentially Weighted Moving Average Model to estimate the volatility of the S&amp;P 100 with two different parameters: lambda = 0.94 and lambda = 0.97 over the entire data-set. I implement a loop that will compute the EWMA Model.
+I used the recursive formula to update the volatility estimate from the previous estimate and the previous observed log-return with the initial volatility estimation sigma^2(t = 0) based on MA with n = 20.</p>
+<pre class="r"><code>lambda94 &lt;- 0.94
+var_EWMA94 &lt;- rep(NA,T)
+var_EWMA94[lag20] &lt;- vol$MA20[lag20]^2
+
+for (i in 21:T) {
+  var_EWMA94[i] &lt;- 1/delta* (1-lambda94)*bench_daily_return_xts[i]^2+lambda94*var_EWMA94[i-1]
+}
+
+lambda97 &lt;- 0.97
+var_EWMA97 &lt;- rep(NA,T)
+var_EWMA97[lag20] &lt;- vol$MA20[lag20]^2
+
+for (i in 21:T) {
+  var_EWMA97[i] &lt;- 1/delta* (1-lambda97)* bench_daily_return_xts[i]^2+lambda97*var_EWMA97[i-1]
+}
+
+vol$EWMA94 &lt;- sqrt(var_EWMA94)
+vol$EWMA97 &lt;- sqrt(var_EWMA97)</code></pre>
+<p>Then I plot the results.</p>
+<pre class="r"><code>p_EWMA &lt;- plot(100*vol[,c(&quot;EWMA94&quot;,&quot;EWMA97&quot;)], col=c(&quot;red&quot;, &quot;black&quot;), 
+               main=&quot;S&amp;P 100 Volatility Estimates with \n EWMA Models&quot;)
+
+addLegend(&quot;topleft&quot;,legend.names=c(paste(&quot;EWMA Model with a decay factor of&quot;, 
+          as.character(lambda94), sep=&quot; &quot;), paste(&quot;EWMA Model with a decay  factor of&quot;, 
+          as.character(lambda97), sep=&quot; &quot;)),  lty=1, lwd=2,  bg=&quot;white&quot;, bty=&quot;o&quot;)</code></pre>
+<p><img src="/blogs/EDHEC_Project_files/figure-html/unnamed-chunk-8-1.png" width="90%" style="display: block; margin: auto;" /></p>
+<p>We can observe that the Exponentially Weighted Moving Average model with a decay factor of 0.94 is more volatile than the one with a decay factor of 0.97. It is not surprising as a lower decay factor might lead to more volatile volatility estimates than a high decay factor: a smaller decay factor leads to a more sensitive estimator.</p>
+</div>
+<div id="e" class="section level2">
+<h2>e)</h2>
+<p>I first download the Implied Volatility of the S&amp;P 100.</p>
+<pre class="r"><code>library(quantmod)
+getSymbols.warning4.0=FALSE
+
+bench_ticker_vol &lt;- &quot;^VXO&quot;
+
+beg_dte &lt;- &quot;2005-06-29&quot;
+end_dte &lt;- &quot;2021-10-01&quot;
+
+bench_vol_xts &lt;- getSymbols(bench_ticker_vol, from=beg_dte, to=end_dte,auto.assign = FALSE)
+bench_vol_ad_xts &lt;- Ad(bench_vol_xts)/100
+
+bench_vol_return_xts &lt;- ROC(bench_vol_ad_xts)
+bench_vol_return_xts &lt;- na.omit(bench_vol_return_xts)
+
+vol$bench &lt;- bench_vol_ad_xts</code></pre>
+<p>Then, I plot on the same graph the estimation using MA model with n = 20 and the estimation using EWMA model with lambda = 0.94 together with the Implied Volatility of the S&amp;P 100 over the entire data-set.</p>
+<pre class="r"><code>p_comparison &lt;- plot(100*vol[,c(&quot;MA20&quot;,&quot;EWMA94&quot;,&quot;bench&quot;)], col=c(&quot;red&quot;, &quot;black&quot;, &quot;blue&quot;),  
+    main=&quot;S&amp;P 100 Implied Volatility and Volatility \n Estimates with MA and EWMA Models&quot;)
+
+addLegend(&quot;topleft&quot;,legend.names=c(paste(&quot;Moving Average Model with lag&quot;, 
+    as.character(lag20), sep=&quot; &quot;), paste(&quot;EWMA Model with a decay factor of&quot;, 
+    as.character(lambda94), sep=&quot; &quot;), paste(&quot;Implied Volatility&quot;)), lty=1,lwd=2, bg=&quot;white&quot;,bty=&quot;o&quot;)</code></pre>
+<p><img src="/blogs/EDHEC_Project_files/figure-html/unnamed-chunk-10-1.png" width="90%" style="display: block; margin: auto;" /></p>
+<p>Both estimation methods based on historical data are pretty close (as we can see on the graph).
+The estimation based on implied volatility is most of the time higher than the estimations based on historical data.
+Also, as implied volatility is forward looking while historical volatility is backward looking, we can observe a lag on the graph (peaks appear before for the implied volatility).</p>
+</div>
+</div>
+<div id="garch-models" class="section level1">
+<h1>2) GARCH Models</h1>
+<div id="a-1" class="section level2">
+<h2>a)</h2>
+<p>I use the GARCH(1,1) model with a mean = 0 and the classical normality assumption for the normalized returns in order to estimate the volatility of the S&amp;P over the entire period of the data-set.</p>
+<p>First, I fit the model to the empirical daily log returns.</p>
+<pre class="r"><code>library(&quot;rugarch&quot;)
+garch_spec &lt;- ugarchspec(variance.model = list(model=&quot;sGARCH&quot;, garchOrder=c(1,1)),
+              mean.model = list(armaOrder=c(0,0), include.mean=TRUE), distribution = &quot;norm&quot;)
+
+garch_fit &lt;- ugarchfit(spec=garch_spec,data=bench_daily_return_xts)
+
+vol$sGARCH &lt;- c(sqrt(1/delta)*garch_fit@fit$sigma[1:T], NA)</code></pre>
+<p>Then I plot the resulting fitted volatility together with the previous estimated models (MA with n = 20 and EWMA with a decay of 0.94).</p>
+<pre class="r"><code>p_GARCH &lt;- plot(100*vol[,c(&quot;MA20&quot;,&quot;EWMA94&quot;,&quot;sGARCH&quot;)], col=c(&quot;red&quot;,&quot;black&quot;,&quot;blue&quot;),
+                main=&quot;S&amp;P 100 Volatility Estimates with \n GARCH(1,1), MA and EWMA Models&quot;)
+
+addLegend(&quot;topleft&quot;,legend.names=c(paste(&quot;Moving Average Model with lag&quot;, as.character(lag20), 
+        sep=&quot; &quot;), paste(&quot;EWMA Model with a decay factor of&quot;, as.character(lambda94), sep=&quot; &quot;),
+        paste(&quot;S&amp;P 100 Volatility Estimates with GARCH(1,1)&quot;)), lty=1,lwd=2, bg=&quot;white&quot;,bty=&quot;o&quot;) </code></pre>
+<p><img src="/blogs/EDHEC_Project_files/figure-html/unnamed-chunk-12-1.png" width="90%" style="display: block; margin: auto;" /></p>
+<p>We can observe that the closest estimate to the GARCH(1,1) model estimate is the estimation using the EWMA model with a decay factor of 0.94.</p>
+</div>
+<div id="b-1" class="section level2">
+<h2>b)</h2>
+<p>I calculate the parameters (omega, alpha and beta) of the GARCH(1,1) model.</p>
+<pre class="r"><code>omega &lt;- garch_fit@fit$coef[&quot;omega&quot;]
+alpha &lt;- garch_fit@fit$coef[&quot;alpha1&quot;]
+beta &lt;- garch_fit@fit$coef[&quot;beta1&quot;]
+
+parameters &lt;- c(omega, alpha, beta)
+names(parameters) &lt;- c(&quot;omega&quot;, &quot;alpha&quot;, &quot;beta&quot;)
+parameters</code></pre>
+<pre><code>##        omega        alpha         beta 
+## 2.770883e-06 1.483970e-01 8.313144e-01</code></pre>
+<p>Then I calculate the sum of alpha and beta.</p>
+<pre class="r"><code>sum &lt;- c(alpha+beta)
+names(sum) &lt;- c(&quot;alpha + beta&quot;)
+sum</code></pre>
+<pre><code>## alpha + beta 
+##    0.9797114</code></pre>
+<p>The sum of alpha and beta is equal to 0.9807778 so it is very close to 1, it could invalidate the choice of the GARCH(1,1) model (model degeneration).</p>
+</div>
+<div id="c-1" class="section level2">
+<h2>c)</h2>
+<p>I compute the long-run volatility estimated from the GARCH(1,1) model.</p>
+<pre class="r"><code>long_run_vol &lt;- sqrt(omega/(1 - alpha - beta))
+
+vol$long_run_volgarch &lt;- long_run_vol*sqrt(252)
+
+vol$long_run_volgarch[1]</code></pre>
+<pre><code>##            long_run_volgarch
+## 2005-06-29         0.1855169</code></pre>
+<p>The long-run volatility is 18.64%.
+Then, I plot the results on the same graph as the fitted volatility.</p>
+<pre class="r"><code>p_longrunGARCH &lt;- plot(100*vol[,c(&quot;sGARCH&quot;,&quot;long_run_volgarch&quot;)], col=c(&quot;red&quot;,&quot;black&quot;), 
+              main=&quot;S&amp;P 100 Long-Run Volatility Estimates \n with GARCH(1,1) and Fitted Volatility&quot;)
+
+addLegend(&quot;topleft&quot;,legend.names=c(paste(&quot;Fitted Volatility&quot;), 
+          paste(&quot;Long-Run Volatility Estimates with GARCH(1,1)&quot;)), lty=1,lwd=2, bg=&quot;white&quot;, bty=&quot;o&quot;)</code></pre>
+<p><img src="/blogs/EDHEC_Project_files/figure-html/unnamed-chunk-16-1.png" width="90%" style="display: block; margin: auto;" /></p>
+</div>
+</div>

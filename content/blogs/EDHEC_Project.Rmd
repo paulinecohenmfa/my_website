@@ -1,0 +1,302 @@
+---
+categories:  
+- ""    #the front matter should be like the one found in, e.g., blog2.md. It cannot be like the normal Rmd we used
+- ""
+date: "2021-09-30"
+description: Estimating the volatility of stock markets # the title that will show up once someone gets to this page
+draft: false
+image: stocks.jpg # save picture in \static\img\blogs. Acceptable formats= jpg, jpeg, or png . Your iPhone pics wont work
+
+keywords: ""
+slug: edhec # slug is the shorthand URL address... no spaces plz
+title: Estimating the volatility of stock markets
+---
+
+Please find above a project I worked on during my previous master at EDHEC Business School. 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+```
+
+# 1) Moving Average Models
+
+## a)
+
+I download the prices for the S&P 100 equity index between 2005-06-29 and 2021-10-01. Then I computed the daily log-returns and filter out the NA values.
+
+```{r}
+
+library(quantmod)
+getSymbols.warning4.0=FALSE
+
+bench_ticker <- "^OEX"
+
+beg_dte <- "2005-06-29"
+end_dte <- "2021-10-01"
+
+bench_daily_data_xts <- getSymbols(bench_ticker, from=beg_dte, to=end_dte,auto.assign = FALSE)
+bench_daily_price_xts <- Ad(bench_daily_data_xts)
+
+bench_daily_return_xts <- ROC(bench_daily_price_xts)
+bench_daily_return_xts <- na.omit(bench_daily_return_xts)
+
+```
+
+Then I plot the prices and log-returns.
+
+```{r}
+
+par(mfrow=c(2,1))
+
+plot(bench_daily_price_xts, main="S&P100 Daily Prices")
+
+plot(bench_daily_return_xts, main="S&P100 Daily Log-Returns")
+
+```
+
+From the log-returns plot, I see several volatility clusters. These volatility clusters correspond to periods with large positive or negative returns.
+
+## b) 
+
+I computed the annualized log-returns.
+
+```{r}
+
+bench_daily_return_avr <- apply(bench_daily_return_xts, 2, mean)
+bench_daily_return_avr_ann <- bench_daily_return_avr * 252
+round(bench_daily_return_avr_ann, 4)
+
+```
+
+Then I computed the volatility over the entire data-set.
+
+```{r}
+
+bench_daily_return_vol <- apply(bench_daily_return_xts, 2, sd)
+bench_daily_return_vol_ann <- bench_daily_return_vol * sqrt(252)
+round(bench_daily_return_vol_ann, 4)
+
+```
+
+## c) 
+
+I use the Moving Average Model to estimate the volatility of the S&P 100 with two different lags: n = 20 and n = 60 over the entire data-set. I implement a loop that will compute the MA Model.
+As we have high frequency data, the sample average can be set equal to 0.
+
+```{r, out.width='90%', fig.align='center'}
+
+delta <- 1/252
+T <- nrow(bench_daily_return_xts)
+
+vol <- xts(order.by=index(bench_daily_return_xts))
+
+vol_MA20 <- rep(NA, T)
+
+for (i in 20:T) {
+  vol_MA20[i]<-1/sqrt(delta)* sd(bench_daily_return_xts[(i-19):i])
+}
+
+vol_MA60 <- rep(NA, T)
+
+for (i in 60:T) {
+  vol_MA60[i]<-1/sqrt(delta)* sd(bench_daily_return_xts[(i-59):i])
+}
+
+vol$MA20 <- vol_MA20
+vol$MA60 <- vol_MA60
+
+```
+
+Then I plot the results.
+
+```{r tidy=FALSE, out.width='90%', fig.align='center'}
+
+p_MA <- plot(100*vol[,c("MA60","MA20")],col=c("red", "black"),
+             main="S&P 100 Volatility Estimates with \n MA Models")
+
+lag60<-60
+lag20<-20
+
+addLegend("topleft", legend.names=c(paste("Moving Average Model with lag", 
+          as.character(lag60), sep=" "),paste("Moving Average Model with lag", 
+          as.character(lag20), sep=" ")),lty=1,lwd=2,bg="white",bty="o")
+
+```
+
+We can observe that the Moving Average model with a lag of 20 is more volatile than the one with a lag of 60. It is not surprising as a low number of sample data might lead to more volatile volatility estimates than a high number of sample data: a smaller time window leads to a more sensitive estimator.
+
+## d) 
+
+I use the Exponentially Weighted Moving Average Model to estimate the volatility of the S&P 100 with two different parameters: lambda = 0.94 and lambda = 0.97 over the entire data-set. I implement a loop that will compute the EWMA Model. 
+I used the recursive formula to update the volatility estimate from the previous estimate and the previous observed log-return with the initial volatility estimation sigma^2(t = 0) based on MA with n = 20.
+
+```{r, out.width='90%', fig.align='center'}
+
+lambda94 <- 0.94
+var_EWMA94 <- rep(NA,T)
+var_EWMA94[lag20] <- vol$MA20[lag20]^2
+
+for (i in 21:T) {
+  var_EWMA94[i] <- 1/delta* (1-lambda94)*bench_daily_return_xts[i]^2+lambda94*var_EWMA94[i-1]
+}
+
+lambda97 <- 0.97
+var_EWMA97 <- rep(NA,T)
+var_EWMA97[lag20] <- vol$MA20[lag20]^2
+
+for (i in 21:T) {
+  var_EWMA97[i] <- 1/delta* (1-lambda97)* bench_daily_return_xts[i]^2+lambda97*var_EWMA97[i-1]
+}
+
+vol$EWMA94 <- sqrt(var_EWMA94)
+vol$EWMA97 <- sqrt(var_EWMA97)
+
+```
+
+Then I plot the results.
+
+```{r tidy=FALSE, out.width='90%', fig.align='center'}
+
+p_EWMA <- plot(100*vol[,c("EWMA94","EWMA97")], col=c("red", "black"), 
+               main="S&P 100 Volatility Estimates with \n EWMA Models")
+
+addLegend("topleft",legend.names=c(paste("EWMA Model with a decay factor of", 
+          as.character(lambda94), sep=" "), paste("EWMA Model with a decay  factor of", 
+          as.character(lambda97), sep=" ")),  lty=1, lwd=2,  bg="white", bty="o")
+
+```
+
+We can observe that the Exponentially Weighted Moving Average model with a decay factor of 0.94 is more volatile than the one with a decay factor of 0.97. It is not surprising as a lower decay factor might lead to more volatile volatility estimates than a high decay factor: a smaller decay factor leads to a more sensitive estimator.
+
+## e)
+
+I first download the Implied Volatility of the S&P 100. 
+
+```{r, out.width='90%', fig.align='center'}
+
+library(quantmod)
+getSymbols.warning4.0=FALSE
+
+bench_ticker_vol <- "^VXO"
+
+beg_dte <- "2005-06-29"
+end_dte <- "2021-10-01"
+
+bench_vol_xts <- getSymbols(bench_ticker_vol, from=beg_dte, to=end_dte,auto.assign = FALSE)
+bench_vol_ad_xts <- Ad(bench_vol_xts)/100
+
+bench_vol_return_xts <- ROC(bench_vol_ad_xts)
+bench_vol_return_xts <- na.omit(bench_vol_return_xts)
+
+vol$bench <- bench_vol_ad_xts
+
+```
+
+Then, I plot on the same graph the estimation using MA model with n = 20 and the estimation using EWMA model with lambda = 0.94 together with the Implied Volatility of the S&P 100 over the entire data-set.
+
+```{r, out.width='90%', fig.align='center', tidy=FALSE}
+
+p_comparison <- plot(100*vol[,c("MA20","EWMA94","bench")], col=c("red", "black", "blue"),  
+    main="S&P 100 Implied Volatility and Volatility \n Estimates with MA and EWMA Models")
+
+addLegend("topleft",legend.names=c(paste("Moving Average Model with lag", 
+    as.character(lag20), sep=" "), paste("EWMA Model with a decay factor of", 
+    as.character(lambda94), sep=" "), paste("Implied Volatility")), lty=1,lwd=2, bg="white",bty="o")
+
+```
+
+Both estimation methods based on historical data are pretty close (as we can see on the graph).
+The estimation based on implied volatility is most of the time higher than the estimations based on historical data.
+Also, as implied volatility is forward looking while historical volatility is backward looking, we can observe a lag on the graph (peaks appear before for the implied volatility). 
+
+
+
+# 2) GARCH Models
+
+## a)
+
+I use the GARCH(1,1) model with a mean = 0 and the classical normality assumption for the normalized returns in order to estimate the volatility of the S&P over the entire period of the data-set. 
+
+First, I fit the model to the empirical daily log returns. 
+
+```{r, out.width='90%', fig.align='center', tidy=FALSE}
+
+library("rugarch")
+garch_spec <- ugarchspec(variance.model = list(model="sGARCH", garchOrder=c(1,1)),
+              mean.model = list(armaOrder=c(0,0), include.mean=TRUE), distribution = "norm")
+
+garch_fit <- ugarchfit(spec=garch_spec,data=bench_daily_return_xts)
+
+vol$sGARCH <- c(sqrt(1/delta)*garch_fit@fit$sigma[1:T], NA)
+
+```
+
+Then I plot the resulting fitted volatility together with the previous estimated models (MA with n = 20 and EWMA with a decay of 0.94).
+
+```{r, out.width='90%', fig.align='center', tidy=FALSE}
+
+p_GARCH <- plot(100*vol[,c("MA20","EWMA94","sGARCH")], col=c("red","black","blue"),
+                main="S&P 100 Volatility Estimates with \n GARCH(1,1), MA and EWMA Models")
+
+addLegend("topleft",legend.names=c(paste("Moving Average Model with lag", as.character(lag20), 
+        sep=" "), paste("EWMA Model with a decay factor of", as.character(lambda94), sep=" "),
+        paste("S&P 100 Volatility Estimates with GARCH(1,1)")), lty=1,lwd=2, bg="white",bty="o") 
+
+```
+
+We can observe that the closest estimate to the GARCH(1,1) model estimate is the estimation using the EWMA model with a decay factor of 0.94.
+
+## b)
+
+I calculate the parameters (omega, alpha and beta) of the GARCH(1,1) model.
+
+```{r, out.width='90%', fig.align='center'}
+
+omega <- garch_fit@fit$coef["omega"]
+alpha <- garch_fit@fit$coef["alpha1"]
+beta <- garch_fit@fit$coef["beta1"]
+
+parameters <- c(omega, alpha, beta)
+names(parameters) <- c("omega", "alpha", "beta")
+parameters
+
+```
+
+Then I calculate the sum of alpha and beta. 
+
+```{r, out.width='90%', fig.align='center'}
+
+sum <- c(alpha+beta)
+names(sum) <- c("alpha + beta")
+sum
+
+```
+
+The sum of alpha and beta is equal to 0.9807778 so it is very close to 1, it could invalidate the choice of the GARCH(1,1) model (model degeneration).
+
+## c)
+
+I compute the long-run volatility estimated from the GARCH(1,1) model. 
+
+```{r, out.width='90%', fig.align='center'}
+
+long_run_vol <- sqrt(omega/(1 - alpha - beta))
+
+vol$long_run_volgarch <- long_run_vol*sqrt(252)
+
+vol$long_run_volgarch[1]
+
+```
+
+The long-run volatility is 18.64%.
+Then, I plot the results on the same graph as the fitted volatility. 
+
+```{r, out.width='90%', fig.align='center', tidy=FALSE}
+
+p_longrunGARCH <- plot(100*vol[,c("sGARCH","long_run_volgarch")], col=c("red","black"), 
+              main="S&P 100 Long-Run Volatility Estimates \n with GARCH(1,1) and Fitted Volatility")
+
+addLegend("topleft",legend.names=c(paste("Fitted Volatility"), 
+          paste("Long-Run Volatility Estimates with GARCH(1,1)")), lty=1,lwd=2, bg="white", bty="o")
+
+```

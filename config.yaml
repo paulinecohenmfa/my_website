@@ -84,27 +84,24 @@ params:
       - image: Cohen_Pauline.jpg
         subtitle: Nice to meet you
         title: Me
-        url: blogs/aliquam
-      - image: Paris.jpg
-        subtitle: Paris, France
-        title: Risk Return
-        url: blogs/risk_return
+        url: blogs/resume
+      - image: lbs_class_1.jpg
+        subtitle: London Business School
+        title: What I do now
+        url: blogs/lbs
       - image: Nice.jpg
-        subtitle: Nice, France
-        title: Where I studied Finance
-        url: blogs/Nice
-      - image: London.jpg
-        subtitle: London, United Kingdom
-        title: Where I am now
-        url: blogs/London
+        subtitle: EDHEC Business School, Nice, France
+        title: Estimating the volatility of stock markets
+        url: blogs/edhec  
+      - image: financial markets.jpg
+        subtitle: Kostis portfolio on DJIA
+        title: Risk Return of DJIA stocks
+        url: blogs/risk_return
       - image: Sunset.jpg
         subtitle: Exchange program, San Diego, United States
         title: Sunset in San Diego
-        url: blogs/Sunset
-      - image: GrandCanyon.jpg
-        subtitle: Grand Canyon, United States
-        title: Discovering the wonders of the United States
-        url: blogs/GrandCanyon
+        url: blogs/sandiego
+    
   two:
     buttonText: Get Started
     enable: yes
