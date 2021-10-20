@@ -1,0 +1,302 @@
+---
+categories:  
+- ""    #the front matter should be like the one found in, e.g., blog2.md. It cannot be like the normal Rmd we used
+- ""
+date: "2021-09-30"
+description: Monte Carlo Simulations, group project # the title that will show up once someone gets to this page
+draft: false
+image: GrandCanyon.jpg # save picture in \static\img\blogs. Acceptable formats= jpg, jpeg, or png . Your iPhone pics wont work
+
+keywords: ""
+slug: montecarlo # slug is the shorthand URL address... no spaces plz
+title: Monte Carlo Simulations, group project
+---
+# Calibration of the Model
+
+## a)
+
+We download the S&P 500 prices over the period between 2005-06-29 and 2021-10-01 and then we extract the adjusted prices.
+
+```{r}
+library(quantmod)
+getSymbols.warning4.0=FALSE
+bench_ticker <-"^GSPC"
+
+beg_dte <- "2005-06-29"
+end_dte <- "2021-10-01"
+
+bench_daily_data_xts <- getSymbols(bench_ticker, from=beg_dte, to=end_dte, auto.assign = FALSE)
+bench_daily_price_xts <- Ad(bench_daily_data_xts)
+```
+
+We compute the daily log-returns and then we filter out NA values.
+
+```{r}
+bench_daily_return_xts <- ROC(bench_daily_price_xts)
+bench_daily_return_xts <- na.omit(bench_daily_return_xts)
+```
+
+We compute the annualized average log-return and the annualized volatility.
+
+```{r tidy=FALSE}
+delta <- 1/252
+bench_daily_return_avr <- apply(bench_daily_return_xts, 2, mean)
+bench_daily_return_avr_ann <- bench_daily_return_avr * 252
+
+bench_daily_return_vol <- apply(bench_daily_return_xts, 2, sd)
+bench_daily_return_vol_ann <- bench_daily_return_vol * sqrt(1/delta)
+
+df <- data.frame(round(100*bench_daily_return_avr_ann, 2), round(100*bench_daily_return_vol_ann, 2))
+
+colnames(df) <- c("Annualized average log-return", "Annualized volatility")
+rownames(df) <- "S&P 500"
+
+knitr::kable(df, caption=paste("Annualized average log-return and volatility of the index 
+                               between ", beg_dte, " and ", end_dte, " (in %)", sep=""))
+```
+
+## b)
+
+We use the moving average model to estimate the volatility of the S&P 500 with lag n=60.
+
+```{r}
+vol <- xts(order.by=index(bench_daily_return_xts))
+T <- nrow(bench_daily_return_xts)
+lag60 <- 60
+vol_MA60 <- c(rep(NA, T))
+for (i in lag60:T){
+data <- bench_daily_return_xts[(i-lag60+1):i]
+vol_MA60[i] <- sqrt(1/delta) * sd(data)
+}
+vol$MA60 <- vol_MA60
+```
+
+We compare the volatility estimate we obtain on 2021-10-01 to the volatility we obtained over the entire data-set.
+
+```{r}
+df <- data.frame(round(100*bench_daily_return_vol_ann, 2), round(100*vol_MA60[length(vol_MA60)], 2))
+
+colnames(df) <- c("Annualized volatility", "Volatility estimate on 2021-10-01")
+rownames(df) <- "S&P 500"
+
+knitr::kable(df, caption="Comparison of the volatilities")
+```
+
+Both are historical votalities. However, we obtain different values because the first one is computed over the entire data set while the estimate with the MA model only takes into account the last 60 values.
+We should use the volatility estimate obtained on 2021-10-01 with the MA model in the BSM model to price the put option since this estimate will give us a better idea of the current market environment (while the annualized volatility will show the general trend on the last 15 years). An interval of 60 days seems to be large enough to compute an average and avoid extreme values.
+
+## c)
+
+To obtain an estimate of the short-term interest rate, we could have used the 3-month US Treasury Bills which can be downloaded from the FRED website.
+When we use Monte Carlo simulations to compute prices of derivatives, we should simulate the underlying price under the risk-neutral probability. Indeed, a market model is arbitrage-free if and only if it has a risk-neutral probability measure according to the first fundamental theorem of asset pricing. As one of the assumptions of the B&S model is that there is no arbitrage opportunity, we need to be in this referential to price derivatives.
+
+# Price of a Put Option with Monte Carlo
+
+## a)
+
+Using the closed-form formula of the BSM model, we price the put option for spot prices ranging from $2,000 to $4,000 and we plot it.
+
+```{r}
+S <- 2000:4000
+
+r <- 0.005
+vol_put <- vol_MA60[length(vol_MA60)]
+T <- 0.25
+K <- 3000
+
+d1 <- (log(S/K) + (r+0.5*vol_put^2)*T) / (vol_put*sqrt(T))
+d2 <- (log(S/K) + (r-0.5*vol_put^2)*T) / (vol_put*sqrt(T))
+
+P <- -S*pnorm(-d1) + K*exp(-r*T)*pnorm(-d2)
+
+p_price_put <- plot(S, P, main="Put option prices")
+```
+
+## b)
+
+We compute the delta and the gamma of the put option for spot prices ranging from $2,000 to $4,000 and we plot them.
+
+```{r}
+delta_put<- -pnorm(-d1)
+gamma_put<- dnorm(d1)/(S*vol_put*sqrt(T))
+
+par(mfrow=c(1,2))
+
+plot(S, delta_put, main="Delta of the put option")
+
+plot(S, gamma_put, main="Gamma of the put option")
+```
+
+When the option is at the money, the gamma is high which means that the delta-hedging strategy is very sensitive. Therefore, the put replicating strategy will need to be adjusted a lot since the delta is certainly going to change quickly. Indeed, the goal of a delta-hedging strategy is to obtain a portfolio delta equals to 0 and thus as delta changes the portfolio needs to be adjusted.
+
+## c)
+
+We run M = 100,000 Monte Carlo simulations to model the evolution of the S&P 500 starting at the value of the S&P 500 on 2021-10-01, and over a horizon of 3 months.
+
+```{r}
+daily_price <- matrix(bench_daily_price_xts)
+
+S0 <- daily_price[length(daily_price)]
+M <- 10^5
+dt <- 1/12
+N <- T/dt
+
+set.seed(1)
+u <- matrix(rnorm(N*M), nrow = N, ncol = M)
+
+dW <- sqrt(dt)*u
+
+logS <- matrix(nrow = N+1, ncol=M)
+logS[1,] <- log(S0)
+
+for (k in 1:N) {
+  logS[k+1,] <- logS[k,] + (r-0.5*vol_put^2)*dt + vol_put*dW[k,]
+}
+
+S <- exp(logS)
+```
+
+In each of the 100,000 scenarios obtained, we compute the value of the put option. Finally, we report the average value m of the put option prices obtained over all the simulations.
+We compute the exact put option price, which is the put option price for a spot price S0 equal to the value of the S&P 500 on 2021-10-01, and we compare both put option prices.
+
+```{r}
+P2 <- exp(-r*T)*pmax(K-S[N+1,],0)
+m <- mean(P2)
+
+d1_0 <- (log(S0/K) + (r+0.5*vol_put^2)*T) / (vol_put*sqrt(T))
+d2_0 <- (log(S0/K) + (r-0.5*vol_put^2)*T) / (vol_put*sqrt(T))
+
+P0 <- -S0*pnorm(-d1_0) + K*exp(-r*T)*pnorm(-d2_0)
+
+df <- data.frame(m, P0)
+
+colnames(df) <- c("With Monte Carlo simulations", "With BSM formula")
+rownames(df) <- "Put option price"
+
+knitr::kable(df, caption="Comparison of the put option prices")
+```
+
+We can observe that the put option price obtained with Monte Carlo simulations is really close to the exact put option price computed with Black-Scholes and Merton formula, but they are not equal (it is 0.04 higher).
+
+## d)
+
+We run the previous Monte Carlo simulations to compute the put option price with M = 10,000 trajectories.
+
+```{r}
+M_2 <- 10^4
+
+set.seed(1)
+u_2 <- matrix(rnorm(N*M_2), nrow = N, ncol = M_2)
+
+dW_2 <- sqrt(dt)*u_2
+
+logS_2 <- matrix(nrow = N+1, ncol=M_2)
+logS_2[1,] <- log(S0)
+
+for (k in 1:N) {
+  logS_2[k+1,] <- logS_2[k,] + (r-0.5*vol_put^2)*dt + vol_put*dW_2[k,]
+}
+
+S_2 <-exp(logS_2)
+
+P2_2 <- exp(-r*T)*pmax(K-S_2[N+1,],0)
+m_2 <- mean(P2_2)
+m_2
+```
+
+Then, we run the previous Monte Carlo simulations to compute the put option price with M = 1,000,000 trajectories.
+
+```{r}
+M_3 <- 10^6
+
+set.seed(1)
+u_3 <- matrix(rnorm(N*M_3), nrow = N, ncol = M_3)
+
+dW_3 <- sqrt(dt)*u_3
+
+logS_3 <- matrix(nrow = N+1, ncol=M_3)
+logS_3[1,] <- log(S0)
+
+for (k in 1:N) {
+  logS_3[k+1,] <- logS_3[k,] + (r-0.5*vol_put^2)*dt + vol_put*dW_3[k,]
+}
+
+S_3 <-exp(logS_3)
+
+P2_3 <- exp(-r*T)*pmax(K-S_3[N+1,],0)
+m_3 <- mean(P2_3)
+m_3
+```
+
+Finally, we compute the 95% confidence interval for each of the three values of M.
+
+```{r}
+lower_bound <- m - 1.96*sd(P2)/sqrt(M) 
+upper_bound <- m + 1.96*sd(P2)/sqrt(M) 
+
+lower_bound_2 <- m_2 - 1.96*sd(P2_2)/sqrt(M_2) 
+upper_bound_2 <- m_2 + 1.96*sd(P2_2)/sqrt(M_2) 
+
+lower_bound_3 <- m_3 - 1.96*sd(P2_3)/sqrt(M_3) 
+upper_bound_3 <- m_3 + 1.96*sd(P2_3)/sqrt(M_3) 
+
+Int_1 <- c(lower_bound, upper_bound)
+names(Int_1) <- c("lower bound M=10^5", "upper bound bound M=10^5")
+
+Int_2 <- c(lower_bound_2, upper_bound_2)
+names(Int_2) <- c("lower bound M=10^4", "upper bound bound M=10^4")
+
+Int_3 <- c(lower_bound_3, upper_bound_3)
+names(Int_3) <- c("lower bound M=10^6", "upper bound bound M=10^6")
+
+df <- data.frame(Int_2, Int_1, Int_3)
+
+colnames(df) <- c("With M = 10,000", "With M = 100,000", "With M = 1,000,000")
+rownames(df) <- c("Lower bound", "Upper bound")
+
+knitr::kable(df, caption="Comparison of the 95% confidence intervals")
+```
+
+We can observe that the bigger M is, the tighter the 95% confidence interval around the exact put option price is. It is not surprising because with a bigger M, the model is more precise. 
+
+## e)
+
+We implement a delta-hedging strategy to replicate the put payoff at maturity using a monthly rebalancing frequency.
+
+```{r tidy=FALSE}
+P_delta_hedging <- matrix(nrow = N+1, ncol = M)
+P_delta_hedging[1,] = m
+
+delta_put_hedging <- matrix(nrow = N+1, ncol = M)
+d1_hedging <- matrix(nrow = N+1, ncol = M)
+
+for (k in 1:N){
+  d1_hedging[k,] <- (log(S[k,]/K) + (r + 0.5*vol_put^2)*(T - dt*k)) / (vol_put*sqrt(T - dt*k))  
+  delta_put_hedging[k,]<- - pnorm(-d1_hedging[k,])
+  P_delta_hedging[k+1,]<- P_delta_hedging[k,] + delta_put_hedging[k,]*(S[k+1,] - S[k,])
+                          + (P_delta_hedging[k,] - delta_put_hedging[k,]*S[k,]) * r * dt
+}
+```
+
+We have run M = 100,000 Monte Carlo simulations in question 2.c so we use the put payoff values in each Monte Carlo scenario to verify if the replicating strategy is efficient. 
+We plot our result for the delta-hedging portfolio values in a graph with the put payoff values in each Monte Carlo scenario.
+
+```{r tidy=FALSE}
+put_payoff_maturity <- matrix(nrow = 1, ncol = M)
+
+Delta_Hedging_Portfolio_Value <- matrix(nrow = 2, ncol = M)
+Delta_Hedging_Portfolio_Value[1,] <- P_delta_hedging[4,]
+Delta_Hedging_Portfolio_Value[2,] <- pmax(K-S[N+1,],0)
+
+Stock_price <- matrix(nrow = 2, ncol = M)
+Stock_price[1,] <- S[4,]
+Stock_price[2,] <- S[4,]
+
+delta_hedging <- plot(Stock_price,Delta_Hedging_Portfolio_Value, col=c("blue","red"),
+                      pch=c(1,20), main="Monte Carlo Simulation of Delta-Hedging")
+
+legend(3300, 1500, legend=c("Delta-hedging portfolio value","Put payoff value"),
+       col=c("blue","red"), lty=1, lwd=2 )
+```
+
+We see on the graph that the delta-hedging strategy is efficient to replicate the put payoff at maturity.
