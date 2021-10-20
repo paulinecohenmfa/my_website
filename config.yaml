@@ -81,7 +81,7 @@ params:
   tiles:
     enable: yes
     showcase:
-      - image: Cohen_Pauline
+      - image: Cohen_Pauline.jpg
         subtitle: Ipsum Dolor Sit Amet
         title: Aliquam
         url: blogs/aliquam
