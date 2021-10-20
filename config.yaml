@@ -78,7 +78,7 @@ params:
       - image: Cohen_Pauline.jpg
         subtitle: Nice to meet you
         title: About me
-        url: blogs/resume
+        url: blogs/PaulineCohen_resume_LBS.pdf
       - image: lbs_class_1.jpg
         subtitle: London Business School
         title: What I do now
