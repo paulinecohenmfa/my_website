@@ -1,4 +1,4 @@
-baseURL: http://example.org/
+baseURL: https://infallible-bose-108675.netlify.app
 languageCode: en-us
 title: Portfolio website for Kostis Christodoulou
 theme: forty
@@ -10,7 +10,7 @@ params:
     subtitle: |-
       A RESPONSIVE SITE TEMPLATE DESIGNED BY HTML5 UP
       AND RELEASED UNDER THE CREATIVE COMMONS.
-    title: Hi, my name is Pauline
+    title: Hi, my name is Pauline Cohen
   blog: {}
   contact:
     address:
@@ -29,7 +29,7 @@ params:
         title: Phone
   custom_css: []
   custom_js: []
-  description: Your description
+  description: 
   error404:
     heading: Page couldn't be found
     text: Please visit [this page](/)
