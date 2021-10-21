@@ -22,6 +22,9 @@ params:
     email:
       - email: pcohen.mfa2022@london.edu 
         title: Email
+    phone:
+    - phone : Sent me an email
+      title: Phone
     enable: yes
   custom_css: []
   custom_js: []
@@ -53,7 +56,7 @@ params:
       - icon: fa-linkedin
         label: LinkedIn
         url: https://www.linkedin.com/in/pauline-cohen-82318a170
-  image: astronomy.jpg
+  image: cover.jpg
   name: Pauline Cohen
   navigation:
     button1:
@@ -82,7 +85,7 @@ params:
       - image: lbs_class_1.jpg
         subtitle: London Business School
         title: What I do now
-        url: blogs/lbs
+        url: blogs/now
       - image: Nice.jpg
         subtitle: EDHEC Business School, Nice, France
         title: MSc in Financial Markets
@@ -90,7 +93,7 @@ params:
       - image: Sunset.jpg
         subtitle: Sunset in San Diego
         title: Exchange program, San Diego, United States
-        url: https://www.sandiego.edu
+        url: blogs/sandiego
       - image: astronomy.jpg
         subtitle: Shoot for the moon. Even if you miss, you'll land among the stars.
         title: A passion for astronomy
@@ -99,17 +102,25 @@ params:
         subtitle: Be ready...
         title: My favorite movie and director
         url: https://www.youtube.com/watch?v=Z5jvQwwHQNY
+      - image: corona.jpg
+        subtitle: R Studio Project, London Business School
+        title: Can we predict recessions?
+        url: blogs/lbs_1 
+      - image: environnement.jpg
+        subtitle: R Studio Project, London Business School
+        title: Are global temperatures increasing?
+        url: blogs/lbs_2
       - image: financial_markets.jpg
-        subtitle: Estimating the volatility of stock markets
-        title: R Studio Project 
+        subtitle: R Studio Project, EDHEC Business School
+        title: Estimating the volatility of stock markets 
         url: blogs/edhec  
       - image: montecarlo.jpg
-        subtitle: Monte Carlo simulations
-        title: R Studio Project
+        subtitle: R Studio Project, EDHEC Business School
+        title: Monte Carlo simulations
         url: blogs/montecarlo
       - image: assets.jpg
         subtitle: Illiquidity of Assets
-        title: End of study Thesis
+        title: End of study Thesis, EDHEC Business School
         url: blogs/Master_Project.pdf
      
       

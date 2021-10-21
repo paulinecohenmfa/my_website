@@ -1,0 +1,18 @@
+---
+categories:  
+- ""    #the front matter should be like the one found in, e.g., blog2.md. It cannot be like the normal Rmd we used
+- ""
+date: "2021-09-30"
+description: San Diego Exchange program, 2018 # the title that will show up once someone gets to this page
+draft: false
+image: GrandCanyon.jpg # save picture in \static\img\blogs. Acceptable formats= jpg, jpeg, or png . Your iPhone pics wont work
+
+keywords: ""
+slug: sandiego # slug is the shorthand URL address... no spaces plz
+title: San Diego Exchange Program, 2018 
+---
+
+During the second semester of my first year, I did an exchange program in the University of San Diego. I really enjoyed this experience on a Californian Campus, the opportunity to discover new knowledge but also new people and cultures. I took this picture of the Grand Canyon when I did a road trip to visit all canyons during holidays. 
+For more information on the University of San Diego please follow the link: 
+https://www.sandiego.edu
+

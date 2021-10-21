@@ -1,0 +1,241 @@
+---
+categories:  
+- ""    #the front matter should be like the one found in, e.g., blog2.md. It cannot be like the normal Rmd we used
+- ""
+date: "2021-09-30"
+description: Global Warming Threat # the title that will show up once someone gets to this page
+draft: false
+image: global.jpg # save picture in \static\img\blogs. Acceptable formats= jpg, jpeg, or png . Your iPhone pics wont work
+
+keywords: ""
+slug: lbs_2 # slug is the shorthand URL address... no spaces plz
+title: Global Warming Threat
+---
+
+# Climate change and temperature anomalies 
+
+```{r, setup, echo=FALSE}
+knitr::opts_chunk$set(
+  message = FALSE, 
+  warning = FALSE, 
+  tidy=FALSE,     # display code as typed
+  size="small")   # slightly smaller font for code
+options(digits = 3)
+
+# default figure size
+knitr::opts_chunk$set(
+  fig.width=6.75, 
+  fig.height=6.75,
+  fig.align = "center"
+)
+```
+
+
+```{r load-libraries, echo=FALSE}
+library(tidyverse)  # Load ggplot2, dplyr, and all the other tidyverse packages
+library(mosaic)
+library(ggthemes)
+library(GGally)
+library(readxl)
+library(here)
+library(skimr)
+library(janitor)
+library(broom)
+library(tidyquant)
+library(infer)
+library(openintro)
+```
+
+
+If we wanted to study climate change, we can find data on the *Combined Land-Surface Air and Sea-Surface Water Temperature Anomalies* in the Northern Hemisphere at [NASA's Goddard Institute for Space Studies](https://data.giss.nasa.gov/gistemp). The [tabular data of temperature anomalies can be found here](https://data.giss.nasa.gov/gistemp/tabledata_v4/NH.Ts+dSST.txt)
+
+To define temperature anomalies you need to have a reference, or base, period which NASA clearly states that it is the period between 1951-1980.
+
+Run the code below to load the file:
+
+```{r weather_data, cache=TRUE}
+
+weather <- 
+  read_csv("https://data.giss.nasa.gov/gistemp/tabledata_v4/NH.Ts+dSST.csv", 
+           skip = 1, 
+           na = "***")
+
+```
+
+Notice that, when using this function, we added two options: `skip` and `na`.
+
+1. The `skip=1` option is there as the real data table only starts in Row 2, so we need to skip one row. 
+1. `na = "***"` option informs R how missing observations in the spreadsheet are coded. When looking at the spreadsheet, you can see that missing data is coded as "***". It is best to specify this here, as otherwise some of the data is not recognized as numeric data.
+
+Once the data is loaded, notice that there is a object titled `weather` in the `Environment` panel. If you cannot see the panel (usually on the top-right), go to `Tools` > `Global Options` > `Pane Layout` and tick the checkbox next to `Environment`. Click on the `weather` object, and the dataframe will pop up on a seperate tab. Inspect the dataframe.
+
+For each month and year, the dataframe shows the deviation of temperature from the normal (expected). Further the dataframe is in wide format. 
+
+You have two objectives in this section:
+
+1. Select the year and the twelve month variables from the `weather` dataset. We do not need the others (J-D, D-N, DJF, etc.) for this assignment. Hint: use `select()` function.
+
+1. Convert the dataframe from wide to 'long' format. Hint: use `gather()` or `pivot_longer()` function. Name the new dataframe as `tidyweather`, name the variable containing the name of the month as `month`, and the temperature deviation values as `delta`.
+
+
+```{r tidyweather,error=FALSE,message=FALSE}
+# Step 1 Select the column that we want
+tidyweather <- select (weather, Year, Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec )
+# Step 2: Turn data into long format using pivot_longer()
+
+tidyweather <- tidyweather %>% 
+  pivot_longer(cols = 2:13, 
+               names_to= "Month",
+               values_to="delta" )
+skim (tidyweather)
+
+```
+
+## Plotting Information
+
+Let us plot the data using a time-series scatter plot, and add a trendline. To do that, we first need to create a new variable called `date` in order to ensure that the `delta` values are plot chronologically. 
+
+
+
+
+```{r scatter_plot}
+
+tidyweather <- tidyweather %>%
+  mutate(date = ymd(paste(as.character(Year), Month, "1")),
+         month = month(date, label=TRUE),
+         year = year(date))
+
+ggplot(tidyweather, aes(x=date, y = delta))+
+  geom_point()+
+  geom_smooth(color="red") +
+  theme_bw() +
+  labs (
+    title = "Weather Anomalies"
+  )
+
+```
+Is the effect of increasing temperature more pronounced in some months? Use `facet_wrap()` to produce a seperate scatter plot for each month, again with a smoothing line. Your chart should human-readable labels; that is, each month should be labeled "Jan", "Feb", "Mar" (full or abbreviated month names are fine), not `1`, `2`, `3`. 
+
+```{r facet_wrap}
+
+tidyweather <- tidyweather %>%
+  mutate(date = ymd(paste(as.character(Year), Month, "1")),
+         month = month(date, label=TRUE),
+         year = year(date))
+
+ggplot(tidyweather, aes(x=date, y = delta))+
+  geom_point()+
+  geom_smooth(color="red") +
+  facet_wrap(~month,scales="free", nrow=4)+
+  theme_bw() +
+  labs (
+    title = "Weather Anomalies by Months"
+  )
+
+
+```
+
+```{r variability of data, echo=FALSE}
+#We will calculate and plot the SD in months to see the variability of the data
+tidyweather1 <- tidyweather %>%
+  mutate(date = ymd(paste(as.character(Year), Month, "1")),
+         month = month(date, label=TRUE),
+         year = year(date)) %>% 
+  group_by(month) %>% 
+  mutate(SD_delta=sd(delta,na.rm=TRUE))
+
+ggplot(tidyweather1, aes(x=month, y = SD_delta))+
+  geom_point()+
+  theme_bw() +
+  labs (
+    title = "SD Weather Anomalies by Months"
+  )
+
+```
+
+Team Comment : It is very interesting to see how temperatures are much more volatile in the winter than in the summer. Indeed, this is due to the general increase in temperatures which is very marked in the winter as this is the period with the lowest temperatures (whereas in the summer, there are already very high temperatures). That is why we wanted to measure the standard deviation, to show that temperatures increased a lot especially in the winter. For example, despite current surging gas prices in the European market, analysts are skeptical that the trend will continue as the increase in temperatures in the winter exerts downward pressure on the global gas demand. According to the financial times, "it would take a longer and colder winter than last year to see market pricing sustained above current levels"
+(https://www.ft.com/content/f2ca6690-0390-4374-a9d5-29caf2d651dd). This is a perpetual topic among the energy analysts - how higher temperature in the winter makes it harder to decrease global gas inventories.
+
+So far, we have been working with monthly anomalies. However, we might be interested in average annual anomalies. We can do this by using `group_by()` and `summarise()`, followed by a scatter plot to display the result. 
+
+```{r averaging}
+
+#creating yearly averages
+average_annual_anomaly <- tidyweather %>% 
+  group_by(Year) %>%   #grouping data by Year
+  
+  # creating summaries for mean delta 
+  # use `na.rm=TRUE` to eliminate NA (not available) values 
+  summarise(annual_average_delta=mean(delta)) 
+
+#plotting the data:
+ggplot(average_annual_anomaly, aes(x=Year, y= annual_average_delta))+
+  geom_point()+
+  
+  #Fit the best fit line, using LOESS method
+  geom_smooth() +
+  
+  #change to theme_bw() to have white background + black frame around plot
+  theme_bw() +
+  labs (
+    title = "Average Yearly Anomaly",
+    y     = "Average Annual Delta"
+  )                         
+
+
+```
+
+Team Comment: Here, we see a clear upward trend of temperatures since 1880. The Paris agreement's goal is to limit global warming to a level well below 2 degrees, preferably 1.5 degrees Celsius. The speed at which investors will shift to Net Zero carbon emissions will depend on the measures that policymakers make. In the US, we see the Biden administration in favour of the energy transition, but it remains to be seen if it passes some of these changes through Congress. The European Commision announced over the summer that it planned to expand the Emission Trading System to the construction and automotive industries. But in reality, despite political uncertainties, there is appears to be a consensus among investors that the energy transition will be accelerated as no one wants to take the risk of being seen to be holding brown assets. As the result, banks and funds must align with the Net Zero Carbon objectives which will likely in turn exert downward pressure on temperatures in the long run (We hope!).
+
+# Biden's Approval Margins 
+
+As we saw in class, fivethirtyeight.com has detailed data on [all polls that track the president's approval ](https://projects.fivethirtyeight.com/biden-approval-ratings)
+
+```{r, cache=TRUE}
+# Import approval polls data directly off fivethirtyeight website
+approval_polllist <- read_csv('https://projects.fivethirtyeight.com/biden-approval-data/approval_polllist.csv') 
+
+glimpse(approval_polllist)
+
+```
+
+## Create a plot
+
+What I would like you to do is to calculate the average net approval rate (approve- disapprove) for each week since he got into office. I want you plot the net approval, along with its 95% confidence interval. There are various dates given for each poll, please use `enddate`, i.e., the date the poll ended.
+
+Also, please add an orange line at zero. Your plot should look like this:
+
+```{r trump_margins, echo=FALSE, out.width="100%"}
+knitr::include_graphics(here::here("images", "biden_approval_margin.png"), error = FALSE)
+```
+```{r}
+approval_pollmutate<- approval_polllist %>%
+  mutate(net_approval_rate = approval_polllist$approve - approval_polllist$disapprove, enddate = mdy(enddate), week = week(enddate)) %>%
+  group_by(week) %>%
+  summarize(average_net_approval_rate = mean(net_approval_rate,na.rm=TRUE), 
+            sd_net_approval_rate = sd(net_approval_rate,na.rm=TRUE), 
+            count = n(),
+            t_critical= qt(0.975,count-1),
+            se_approval_rate=
+              sd_net_approval_rate/sqrt(count),
+            margin_of_error= t_critical * se_approval_rate,
+            approval_rate_low95=average_net_approval_rate-margin_of_error,
+            approval_rate_high95=average_net_approval_rate+margin_of_error)
+            
+            
+            
+  ggplot(approval_pollmutate,aes(x = week, y = average_net_approval_rate)) + 
+    geom_line(color = "red") + 
+    labs(title = "Estimate Approval Margin (approve-disapprove) for Joe Biden",subtitle="Weekly average of all poll", x = "Week of the year", y="Average Approval Margin (Approve - Disapprove)")+geom_point(color = "red") +
+    geom_smooth(color = "blue", se = FALSE)+ theme_bw() +
+    geom_line(aes(x=week,y= approval_rate_low95),linetype="solid",color="orange")+
+    geom_line(aes(x=week,y= approval_rate_high95),linetype="solid",color="orange")+
+    scale_y_continuous(labels = scales::comma) +
+    geom_hline(yintercept=0,linetype="solid",color="orange", size = 1) + 
+      annotate("text", x = 20,y=26, label = "2021", size=2,color="black")+
+    geom_ribbon(aes(xmin = 7, xmax = 40, ymin=approval_rate_low95, ymax =approval_rate_high95), alpha = 0.1)
+
+
+```
+
+What we see here is that the polls in favour of Biden have been consistently decreasing since the president was elected. The most recent explanation is the crisis in Afghanistan and how people disapprove the Biden management of the crisis. Another reason is due to the fact that recent inflation over the summer has exerted downward pressure on people's purchasing power. Related to what we have said about temperatures, we see that there are still wide uncertainties regarding the ability of Biden to get the approval of Congress for its political agenda.
