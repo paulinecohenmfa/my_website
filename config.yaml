@@ -12,6 +12,7 @@ params:
     title: Hi, my name is Pauline Cohen
   blog: {}
   contact:
+    formEmail: pcohen.mfa2022@london.edu
     address:
       - city: Paris
         country: France
