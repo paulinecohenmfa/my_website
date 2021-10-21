@@ -6,7 +6,7 @@ googleAnalytics: ''
 disqusShortname: ''
 params:
   banner: 
-    buttonText: Get Started
+    buttonText: Discover me
     subtitle: |-
       Welcome to my blog, feel free to reach out if you have questions!
     title: Hi, my name is Pauline Cohen
@@ -59,7 +59,7 @@ params:
   name: Pauline Cohen
   navigation:
     button1:
-      - name: Discover me
+      - name: My storyline
         url: blogs
     button2:
       - name: Log In
@@ -69,8 +69,8 @@ params:
         url: '#'
       - name: Get to know me
         url: https://pauline-portfolio.netlify.app/blogs/resume/
-      - name: My Storyline
-        url: blogs
+      - name: Master Thesis 
+        url: blogs/Master_Project.pdf
     menu: Menu
     subtitle: By HTML5 Up
     title: Forty
