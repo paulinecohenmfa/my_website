@@ -2,13 +2,13 @@
 categories:  
 - ""    #the front matter should be like the one found in, e.g., blog2.md. It cannot be like the normal Rmd we used
 - ""
-date: "2021-09-30"
+date: "2021-10-21"
 description: About me # the title that will show up once someone gets to this page
 draft: false
 image: resume.jpg # save picture in \static\img\blogs. Acceptable formats= jpg, jpeg, or png . Your iPhone pics wont work
 keywords: ""
 slug: resume # slug is the shorthand URL address... no spaces plz
-title: Pauline Cohen 2021 Resume
+title: Pauline Cohen 2021 Biography
 ---
 
 ### Introduction
@@ -20,12 +20,13 @@ My name is **Pauline Cohen**, I am 24 years old and I am currently enrolled in t
 
 I see finance as a perfect match for my passion for mathematics and my desire to get involved in the real world. I have completed four internships and loved them all because they have all shown me potential careers paths. I want to make sure I have all the skills needed to be effective in my future work and I know the *Master in Financial Analysis* at the **London Business School** will greatly expand my knowledge and enable me to better understand the financial industry. 
 
-### Internships
+### Internships and Experience
 
 I started with a fascinating internship in *Europacorp*, the producing house of Film director Luc Besson, where I was responsible for low-cost movies, specializing in light comedies. A lot can be learned from producing a movie. In 2019, I completed a six-month internship for *Amundi (CPRAM)* in credit and rates. With negative interest rates almost everywhere, I witnessed the challenge faced by asset management firms involving sophisticated strategies to escape the low returns of plain vanilla bonds.After *Amundi*, I completed another six-month internship at *BNP Paribas* as a Sales Commodity Derivatives Assistant. The tasks were extremely demanding as we were continuously asked to offer a full range of derivatives to our clients allowing them to be hedged against energy risks. This internship helped me develop my knowledge of derivatives and I learned how to best tailor their use to the needs of clients.
 
 I just finished a Summer Internship at *BlackRock* in Alternative Investments and I was fascinated by the range of investments that I dealt with. I cooperated with the product strategy, portfolio management and research teams to construct the Real Assets portfolio allocation in the UK and in Europe.
 
+Last year I had a complete formation in finance in Nice that gave me the tools I needed to be efficient in my future work. I studied Financial Econometrics, Portfolio Construction Theory, Macroeconomics, Fixed Income, Derivatives as mentioned earlier. Those classes taught me how to deal with theoretical models (CAPM model, minimum variance portfolio, a cash and carry strategy, pricing options) but also how to apply them into real life. I think of myself as an open-minded person with rigor. During the second semester of my first year, I did an exchange program in the University of San Diego. I really enjoyed this experience on a Californian Campus, the opportunity to discover new knowledge but also new people and cultures. Adding this experience to being elected as the General Secretary of my association (for international students), I believe I deeply learned how to work with people in new environments.
 
-
+Thank you for visiting my website!
 
