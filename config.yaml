@@ -67,10 +67,10 @@ params:
     links:
       - name: Home
         url: '#'
+      - name: Get to know me
+        url: https://pauline-portfolio.netlify.app/blogs/resume/
       - name: Blogs
-        url: blogs
-      - name: Elements
-        url: elements.html
+        url: https://pauline-portfolio.netlify.app/blogs/
     menu: Menu
     subtitle: By HTML5 Up
     title: Forty
