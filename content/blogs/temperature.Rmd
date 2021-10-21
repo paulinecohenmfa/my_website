@@ -51,7 +51,6 @@ If we wanted to study climate change, we can find data on the *Combined Land-Sur
 
 To define temperature anomalies you need to have a reference, or base, period which NASA clearly states that it is the period between 1951-1980.
 
-Run the code below to load the file:
 
 ```{r weather_data, cache=TRUE}
 
@@ -61,22 +60,6 @@ weather <-
            na = "***")
 
 ```
-
-Notice that, when using this function, we added two options: `skip` and `na`.
-
-1. The `skip=1` option is there as the real data table only starts in Row 2, so we need to skip one row. 
-1. `na = "***"` option informs R how missing observations in the spreadsheet are coded. When looking at the spreadsheet, you can see that missing data is coded as "***". It is best to specify this here, as otherwise some of the data is not recognized as numeric data.
-
-Once the data is loaded, notice that there is a object titled `weather` in the `Environment` panel. If you cannot see the panel (usually on the top-right), go to `Tools` > `Global Options` > `Pane Layout` and tick the checkbox next to `Environment`. Click on the `weather` object, and the dataframe will pop up on a seperate tab. Inspect the dataframe.
-
-For each month and year, the dataframe shows the deviation of temperature from the normal (expected). Further the dataframe is in wide format. 
-
-You have two objectives in this section:
-
-1. Select the year and the twelve month variables from the `weather` dataset. We do not need the others (J-D, D-N, DJF, etc.) for this assignment. Hint: use `select()` function.
-
-1. Convert the dataframe from wide to 'long' format. Hint: use `gather()` or `pivot_longer()` function. Name the new dataframe as `tidyweather`, name the variable containing the name of the month as `month`, and the temperature deviation values as `delta`.
-
 
 ```{r tidyweather,error=FALSE,message=FALSE}
 # Step 1 Select the column that we want
@@ -96,8 +79,6 @@ skim (tidyweather)
 Let us plot the data using a time-series scatter plot, and add a trendline. To do that, we first need to create a new variable called `date` in order to ensure that the `delta` values are plot chronologically. 
 
 
-
-
 ```{r scatter_plot}
 
 tidyweather <- tidyweather %>%
@@ -114,7 +95,7 @@ ggplot(tidyweather, aes(x=date, y = delta))+
   )
 
 ```
-Is the effect of increasing temperature more pronounced in some months? Use `facet_wrap()` to produce a seperate scatter plot for each month, again with a smoothing line. Your chart should human-readable labels; that is, each month should be labeled "Jan", "Feb", "Mar" (full or abbreviated month names are fine), not `1`, `2`, `3`. 
+Is the effect of increasing temperature more pronounced in some months? 
 
 ```{r facet_wrap}
 
@@ -153,7 +134,7 @@ ggplot(tidyweather1, aes(x=month, y = SD_delta))+
 
 ```
 
-Team Comment : It is very interesting to see how temperatures are much more volatile in the winter than in the summer. Indeed, this is due to the general increase in temperatures which is very marked in the winter as this is the period with the lowest temperatures (whereas in the summer, there are already very high temperatures). That is why we wanted to measure the standard deviation, to show that temperatures increased a lot especially in the winter. For example, despite current surging gas prices in the European market, analysts are skeptical that the trend will continue as the increase in temperatures in the winter exerts downward pressure on the global gas demand. According to the financial times, "it would take a longer and colder winter than last year to see market pricing sustained above current levels"
+It is very interesting to see how temperatures are much more volatile in the winter than in the summer. Indeed, this is due to the general increase in temperatures which is very marked in the winter as this is the period with the lowest temperatures (whereas in the summer, there are already very high temperatures). That is why we wanted to measure the standard deviation, to show that temperatures increased a lot especially in the winter. For example, despite current surging gas prices in the European market, analysts are skeptical that the trend will continue as the increase in temperatures in the winter exerts downward pressure on the global gas demand. According to the financial times, "it would take a longer and colder winter than last year to see market pricing sustained above current levels"
 (https://www.ft.com/content/f2ca6690-0390-4374-a9d5-29caf2d651dd). This is a perpetual topic among the energy analysts - how higher temperature in the winter makes it harder to decrease global gas inventories.
 
 So far, we have been working with monthly anomalies. However, we might be interested in average annual anomalies. We can do this by using `group_by()` and `summarise()`, followed by a scatter plot to display the result. 
@@ -185,11 +166,11 @@ ggplot(average_annual_anomaly, aes(x=Year, y= annual_average_delta))+
 
 ```
 
-Team Comment: Here, we see a clear upward trend of temperatures since 1880. The Paris agreement's goal is to limit global warming to a level well below 2 degrees, preferably 1.5 degrees Celsius. The speed at which investors will shift to Net Zero carbon emissions will depend on the measures that policymakers make. In the US, we see the Biden administration in favour of the energy transition, but it remains to be seen if it passes some of these changes through Congress. The European Commision announced over the summer that it planned to expand the Emission Trading System to the construction and automotive industries. But in reality, despite political uncertainties, there is appears to be a consensus among investors that the energy transition will be accelerated as no one wants to take the risk of being seen to be holding brown assets. As the result, banks and funds must align with the Net Zero Carbon objectives which will likely in turn exert downward pressure on temperatures in the long run (We hope!).
+Here, we see a clear upward trend of temperatures since 1880. The Paris agreement's goal is to limit global warming to a level well below 2 degrees, preferably 1.5 degrees Celsius. The speed at which investors will shift to Net Zero carbon emissions will depend on the measures that policymakers make. In the US, we see the Biden administration in favour of the energy transition, but it remains to be seen if it passes some of these changes through Congress. The European Commision announced over the summer that it planned to expand the Emission Trading System to the construction and automotive industries. But in reality, despite political uncertainties, there is appears to be a consensus among investors that the energy transition will be accelerated as no one wants to take the risk of being seen to be holding brown assets. As the result, banks and funds must align with the Net Zero Carbon objectives which will likely in turn exert downward pressure on temperatures in the long run (We hope!).
 
 # Biden's Approval Margins 
 
-As we saw in class, fivethirtyeight.com has detailed data on [all polls that track the president's approval ](https://projects.fivethirtyeight.com/biden-approval-ratings)
+The speed at which investors can shift to net zero carbon depends on the governement and its ability to get the approval for its political agenda. Even though Biden is willing to accelerate the energy transition, it will still depend on the Congress approvement. We thought here it was interesting to plot Biden's Approval Margin. 
 
 ```{r, cache=TRUE}
 # Import approval polls data directly off fivethirtyeight website
@@ -201,13 +182,8 @@ glimpse(approval_polllist)
 
 ## Create a plot
 
-What I would like you to do is to calculate the average net approval rate (approve- disapprove) for each week since he got into office. I want you plot the net approval, along with its 95% confidence interval. There are various dates given for each poll, please use `enddate`, i.e., the date the poll ended.
+We will calculate the average net approval rate (approve- disapprove) for each week since he got into office. 
 
-Also, please add an orange line at zero. Your plot should look like this:
-
-```{r trump_margins, echo=FALSE, out.width="100%"}
-knitr::include_graphics(here::here("images", "biden_approval_margin.png"), error = FALSE)
-```
 ```{r}
 approval_pollmutate<- approval_polllist %>%
   mutate(net_approval_rate = approval_polllist$approve - approval_polllist$disapprove, enddate = mdy(enddate), week = week(enddate)) %>%

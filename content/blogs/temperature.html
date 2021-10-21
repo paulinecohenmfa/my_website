@@ -1,0 +1,270 @@
+---
+categories:  
+- ""    #the front matter should be like the one found in, e.g., blog2.md. It cannot be like the normal Rmd we used
+- ""
+date: "2021-09-30"
+description: Global Warming Threat # the title that will show up once someone gets to this page
+draft: false
+image: global.jpg # save picture in \static\img\blogs. Acceptable formats= jpg, jpeg, or png . Your iPhone pics wont work
+
+keywords: ""
+slug: lbs_2 # slug is the shorthand URL address... no spaces plz
+title: Global Warming Threat
+---
+
+
+
+<div id="climate-change-and-temperature-anomalies" class="section level1">
+<h1>Climate change and temperature anomalies</h1>
+<p>If we wanted to study climate change, we can find data on the <em>Combined Land-Surface Air and Sea-Surface Water Temperature Anomalies</em> in the Northern Hemisphere at <a href="https://data.giss.nasa.gov/gistemp">NASA’s Goddard Institute for Space Studies</a>. The <a href="https://data.giss.nasa.gov/gistemp/tabledata_v4/NH.Ts+dSST.txt">tabular data of temperature anomalies can be found here</a></p>
+<p>To define temperature anomalies you need to have a reference, or base, period which NASA clearly states that it is the period between 1951-1980.</p>
+<pre class="r"><code>weather &lt;- 
+  read_csv(&quot;https://data.giss.nasa.gov/gistemp/tabledata_v4/NH.Ts+dSST.csv&quot;, 
+           skip = 1, 
+           na = &quot;***&quot;)</code></pre>
+<pre class="r"><code># Step 1 Select the column that we want
+tidyweather &lt;- select (weather, Year, Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec )
+# Step 2: Turn data into long format using pivot_longer()
+
+tidyweather &lt;- tidyweather %&gt;% 
+  pivot_longer(cols = 2:13, 
+               names_to= &quot;Month&quot;,
+               values_to=&quot;delta&quot; )
+skim (tidyweather)</code></pre>
+<table>
+<caption><span id="tab:tidyweather">Table 1: </span>Data summary</caption>
+<tbody>
+<tr class="odd">
+<td align="left">Name</td>
+<td align="left">tidyweather</td>
+</tr>
+<tr class="even">
+<td align="left">Number of rows</td>
+<td align="left">1704</td>
+</tr>
+<tr class="odd">
+<td align="left">Number of columns</td>
+<td align="left">3</td>
+</tr>
+<tr class="even">
+<td align="left">_______________________</td>
+<td align="left"></td>
+</tr>
+<tr class="odd">
+<td align="left">Column type frequency:</td>
+<td align="left"></td>
+</tr>
+<tr class="even">
+<td align="left">character</td>
+<td align="left">1</td>
+</tr>
+<tr class="odd">
+<td align="left">numeric</td>
+<td align="left">2</td>
+</tr>
+<tr class="even">
+<td align="left">________________________</td>
+<td align="left"></td>
+</tr>
+<tr class="odd">
+<td align="left">Group variables</td>
+<td align="left">None</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Variable type: character</strong></p>
+<table>
+<thead>
+<tr class="header">
+<th align="left">skim_variable</th>
+<th align="right">n_missing</th>
+<th align="right">complete_rate</th>
+<th align="right">min</th>
+<th align="right">max</th>
+<th align="right">empty</th>
+<th align="right">n_unique</th>
+<th align="right">whitespace</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">Month</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">3</td>
+<td align="right">3</td>
+<td align="right">0</td>
+<td align="right">12</td>
+<td align="right">0</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Variable type: numeric</strong></p>
+<table>
+<thead>
+<tr class="header">
+<th align="left">skim_variable</th>
+<th align="right">n_missing</th>
+<th align="right">complete_rate</th>
+<th align="right">mean</th>
+<th align="right">sd</th>
+<th align="right">p0</th>
+<th align="right">p25</th>
+<th align="right">p50</th>
+<th align="right">p75</th>
+<th align="right">p100</th>
+<th align="left">hist</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">Year</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">1950.50</td>
+<td align="right">41.00</td>
+<td align="right">1880.00</td>
+<td align="right">1915.00</td>
+<td align="right">1950</td>
+<td align="right">1986.00</td>
+<td align="right">2021.00</td>
+<td align="left">▇▇▇▇▇</td>
+</tr>
+<tr class="even">
+<td align="left">delta</td>
+<td align="right">3</td>
+<td align="right">1</td>
+<td align="right">0.08</td>
+<td align="right">0.47</td>
+<td align="right">-1.52</td>
+<td align="right">-0.24</td>
+<td align="right">0</td>
+<td align="right">0.31</td>
+<td align="right">1.94</td>
+<td align="left">▁▆▇▂▁</td>
+</tr>
+</tbody>
+</table>
+<div id="plotting-information" class="section level2">
+<h2>Plotting Information</h2>
+<p>Let us plot the data using a time-series scatter plot, and add a trendline. To do that, we first need to create a new variable called <code>date</code> in order to ensure that the <code>delta</code> values are plot chronologically.</p>
+<pre class="r"><code>tidyweather &lt;- tidyweather %&gt;%
+  mutate(date = ymd(paste(as.character(Year), Month, &quot;1&quot;)),
+         month = month(date, label=TRUE),
+         year = year(date))
+
+ggplot(tidyweather, aes(x=date, y = delta))+
+  geom_point()+
+  geom_smooth(color=&quot;red&quot;) +
+  theme_bw() +
+  labs (
+    title = &quot;Weather Anomalies&quot;
+  )</code></pre>
+<p><img src="/blogs/temperature_files/figure-html/scatter_plot-1.png" width="648" style="display: block; margin: auto;" />
+Is the effect of increasing temperature more pronounced in some months?</p>
+<pre class="r"><code>tidyweather &lt;- tidyweather %&gt;%
+  mutate(date = ymd(paste(as.character(Year), Month, &quot;1&quot;)),
+         month = month(date, label=TRUE),
+         year = year(date))
+
+ggplot(tidyweather, aes(x=date, y = delta))+
+  geom_point()+
+  geom_smooth(color=&quot;red&quot;) +
+  facet_wrap(~month,scales=&quot;free&quot;, nrow=4)+
+  theme_bw() +
+  labs (
+    title = &quot;Weather Anomalies by Months&quot;
+  )</code></pre>
+<p><img src="/blogs/temperature_files/figure-html/facet_wrap-1.png" width="648" style="display: block; margin: auto;" /></p>
+<p><img src="/blogs/temperature_files/figure-html/variability%20of%20data-1.png" width="648" style="display: block; margin: auto;" /></p>
+<p>It is very interesting to see how temperatures are much more volatile in the winter than in the summer. Indeed, this is due to the general increase in temperatures which is very marked in the winter as this is the period with the lowest temperatures (whereas in the summer, there are already very high temperatures). That is why we wanted to measure the standard deviation, to show that temperatures increased a lot especially in the winter. For example, despite current surging gas prices in the European market, analysts are skeptical that the trend will continue as the increase in temperatures in the winter exerts downward pressure on the global gas demand. According to the financial times, “it would take a longer and colder winter than last year to see market pricing sustained above current levels”
+(<a href="https://www.ft.com/content/f2ca6690-0390-4374-a9d5-29caf2d651dd" class="uri">https://www.ft.com/content/f2ca6690-0390-4374-a9d5-29caf2d651dd</a>). This is a perpetual topic among the energy analysts - how higher temperature in the winter makes it harder to decrease global gas inventories.</p>
+<p>So far, we have been working with monthly anomalies. However, we might be interested in average annual anomalies. We can do this by using <code>group_by()</code> and <code>summarise()</code>, followed by a scatter plot to display the result.</p>
+<pre class="r"><code>#creating yearly averages
+average_annual_anomaly &lt;- tidyweather %&gt;% 
+  group_by(Year) %&gt;%   #grouping data by Year
+  
+  # creating summaries for mean delta 
+  # use `na.rm=TRUE` to eliminate NA (not available) values 
+  summarise(annual_average_delta=mean(delta)) 
+
+#plotting the data:
+ggplot(average_annual_anomaly, aes(x=Year, y= annual_average_delta))+
+  geom_point()+
+  
+  #Fit the best fit line, using LOESS method
+  geom_smooth() +
+  
+  #change to theme_bw() to have white background + black frame around plot
+  theme_bw() +
+  labs (
+    title = &quot;Average Yearly Anomaly&quot;,
+    y     = &quot;Average Annual Delta&quot;
+  )                         </code></pre>
+<p><img src="/blogs/temperature_files/figure-html/averaging-1.png" width="648" style="display: block; margin: auto;" /></p>
+<p>Here, we see a clear upward trend of temperatures since 1880. The Paris agreement’s goal is to limit global warming to a level well below 2 degrees, preferably 1.5 degrees Celsius. The speed at which investors will shift to Net Zero carbon emissions will depend on the measures that policymakers make. In the US, we see the Biden administration in favour of the energy transition, but it remains to be seen if it passes some of these changes through Congress. The European Commision announced over the summer that it planned to expand the Emission Trading System to the construction and automotive industries. But in reality, despite political uncertainties, there is appears to be a consensus among investors that the energy transition will be accelerated as no one wants to take the risk of being seen to be holding brown assets. As the result, banks and funds must align with the Net Zero Carbon objectives which will likely in turn exert downward pressure on temperatures in the long run (We hope!).</p>
+</div>
+</div>
+<div id="bidens-approval-margins" class="section level1">
+<h1>Biden’s Approval Margins</h1>
+<p>The speed at which investors can shift to net zero carbon depends on the governement and its ability to get the approval for its political agenda. Even though Biden is willing to accelerate the energy transition, it will still depend on the Congress approvement. We thought here it was interesting to plot Biden’s Approval Margin.</p>
+<pre class="r"><code># Import approval polls data directly off fivethirtyeight website
+approval_polllist &lt;- read_csv(&#39;https://projects.fivethirtyeight.com/biden-approval-data/approval_polllist.csv&#39;) 
+
+glimpse(approval_polllist)</code></pre>
+<pre><code>## Rows: 1,947
+## Columns: 22
+## $ president           &lt;chr&gt; &quot;Joseph R. Biden Jr.&quot;, &quot;Joseph R. Biden Jr.&quot;, &quot;Jos…
+## $ subgroup            &lt;chr&gt; &quot;All polls&quot;, &quot;All polls&quot;, &quot;All polls&quot;, &quot;All polls&quot;…
+## $ modeldate           &lt;chr&gt; &quot;10/20/2021&quot;, &quot;10/20/2021&quot;, &quot;10/20/2021&quot;, &quot;10/20/2…
+## $ startdate           &lt;chr&gt; &quot;1/19/2021&quot;, &quot;1/19/2021&quot;, &quot;1/20/2021&quot;, &quot;1/20/2021&quot;…
+## $ enddate             &lt;chr&gt; &quot;1/21/2021&quot;, &quot;1/21/2021&quot;, &quot;1/21/2021&quot;, &quot;1/21/2021&quot;…
+## $ pollster            &lt;chr&gt; &quot;Rasmussen Reports/Pulse Opinion Research&quot;, &quot;Morni…
+## $ grade               &lt;chr&gt; &quot;B&quot;, &quot;B&quot;, &quot;B-&quot;, &quot;B&quot;, &quot;B&quot;, &quot;B+&quot;, &quot;B&quot;, &quot;B-&quot;, &quot;B&quot;, &quot;B…
+## $ samplesize          &lt;dbl&gt; 1500, 15000, 1115, 1993, 15000, 1516, 15000, 1200,…
+## $ population          &lt;chr&gt; &quot;lv&quot;, &quot;a&quot;, &quot;a&quot;, &quot;rv&quot;, &quot;a&quot;, &quot;a&quot;, &quot;a&quot;, &quot;rv&quot;, &quot;lv&quot;, &quot;…
+## $ weight              &lt;dbl&gt; 0.3382, 0.2594, 1.1014, 0.0930, 0.2333, 1.2454, 0.…
+## $ influence           &lt;dbl&gt; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,…
+## $ approve             &lt;dbl&gt; 48, 50, 55, 56, 51, 45, 52, 58, 48, 63, 48, 55, 53…
+## $ disapprove          &lt;dbl&gt; 45, 28, 32, 31, 28, 28, 29, 32, 47, 37, 47, 33, 29…
+## $ adjusted_approve    &lt;dbl&gt; 50.4, 48.5, 53.8, 54.5, 49.5, 46.4, 50.5, 56.9, 50…
+## $ adjusted_disapprove &lt;dbl&gt; 38.8, 31.2, 33.0, 34.2, 31.2, 28.5, 32.2, 33.1, 40…
+## $ multiversions       &lt;chr&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA…
+## $ tracking            &lt;lgl&gt; TRUE, TRUE, NA, NA, TRUE, NA, TRUE, NA, TRUE, NA, …
+## $ url                 &lt;chr&gt; &quot;https://www.rasmussenreports.com/public_content/p…
+## $ poll_id             &lt;dbl&gt; 74247, 74272, 74248, 74246, 74273, 74327, 74274, 7…
+## $ question_id         &lt;dbl&gt; 139395, 139491, 139404, 139394, 139492, 139570, 13…
+## $ createddate         &lt;chr&gt; &quot;1/22/2021&quot;, &quot;1/28/2021&quot;, &quot;1/22/2021&quot;, &quot;1/22/2021&quot;…
+## $ timestamp           &lt;chr&gt; &quot;20:39:09 20 Oct 2021&quot;, &quot;20:39:09 20 Oct 2021&quot;, &quot;2…</code></pre>
+<div id="create-a-plot" class="section level2">
+<h2>Create a plot</h2>
+<p>We will calculate the average net approval rate (approve- disapprove) for each week since he got into office.</p>
+<pre class="r"><code>approval_pollmutate&lt;- approval_polllist %&gt;%
+  mutate(net_approval_rate = approval_polllist$approve - approval_polllist$disapprove, enddate = mdy(enddate), week = week(enddate)) %&gt;%
+  group_by(week) %&gt;%
+  summarize(average_net_approval_rate = mean(net_approval_rate,na.rm=TRUE), 
+            sd_net_approval_rate = sd(net_approval_rate,na.rm=TRUE), 
+            count = n(),
+            t_critical= qt(0.975,count-1),
+            se_approval_rate=
+              sd_net_approval_rate/sqrt(count),
+            margin_of_error= t_critical * se_approval_rate,
+            approval_rate_low95=average_net_approval_rate-margin_of_error,
+            approval_rate_high95=average_net_approval_rate+margin_of_error)
+            
+            
+            
+  ggplot(approval_pollmutate,aes(x = week, y = average_net_approval_rate)) + 
+    geom_line(color = &quot;red&quot;) + 
+    labs(title = &quot;Estimate Approval Margin (approve-disapprove) for Joe Biden&quot;,subtitle=&quot;Weekly average of all poll&quot;, x = &quot;Week of the year&quot;, y=&quot;Average Approval Margin (Approve - Disapprove)&quot;)+geom_point(color = &quot;red&quot;) +
+    geom_smooth(color = &quot;blue&quot;, se = FALSE)+ theme_bw() +
+    geom_line(aes(x=week,y= approval_rate_low95),linetype=&quot;solid&quot;,color=&quot;orange&quot;)+
+    geom_line(aes(x=week,y= approval_rate_high95),linetype=&quot;solid&quot;,color=&quot;orange&quot;)+
+    scale_y_continuous(labels = scales::comma) +
+    geom_hline(yintercept=0,linetype=&quot;solid&quot;,color=&quot;orange&quot;, size = 1) + 
+      annotate(&quot;text&quot;, x = 20,y=26, label = &quot;2021&quot;, size=2,color=&quot;black&quot;)+
+    geom_ribbon(aes(xmin = 7, xmax = 40, ymin=approval_rate_low95, ymax =approval_rate_high95), alpha = 0.1)</code></pre>
+<p><img src="/blogs/temperature_files/figure-html/unnamed-chunk-2-1.png" width="648" style="display: block; margin: auto;" /></p>
+<p>What we see here is that the polls in favour of Biden have been consistently decreasing since the president was elected. The most recent explanation is the crisis in Afghanistan and how people disapprove the Biden management of the crisis. Another reason is due to the fact that recent inflation over the summer has exerted downward pressure on people’s purchasing power. Related to what we have said about temperatures, we see that there are still wide uncertainties regarding the ability of Biden to get the approval of Congress for its political agenda.</p>
+</div>
+</div>

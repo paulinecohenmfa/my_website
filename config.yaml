@@ -8,8 +8,7 @@ params:
   banner:
     buttonText: Get Started
     subtitle: |-
-      A RESPONSIVE SITE TEMPLATE DESIGNED BY HTML5 UP
-      AND RELEASED UNDER THE CREATIVE COMMONS.
+      Welcome to my blog, feel free to reach out if you have questions!
     title: Hi, my name is Pauline Cohen
   blog: {}
   contact:
@@ -23,7 +22,7 @@ params:
       - email: pcohen.mfa2022@london.edu 
         title: Email
     phone:
-    - phone : Sent me an email
+    - phone : Reach me first by email
       title: Phone
     enable: yes
   custom_css: []
@@ -119,8 +118,8 @@ params:
         title: Monte Carlo simulations
         url: blogs/montecarlo
       - image: assets.jpg
-        subtitle: Illiquidity of Assets
-        title: End of study Thesis, EDHEC Business School
+        subtitle: End of study Thesis, EDHEC Business School
+        title: Illiquidity of Assets and their prices
         url: blogs/Master_Project.pdf
      
       
