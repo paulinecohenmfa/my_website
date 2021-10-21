@@ -22,7 +22,7 @@ params:
       - email: pcohen.mfa2022@london.edu 
         title: Email
     phone:
-    - phone : Reach me first by email
+    - phone : +33619486078
       title: Phone
     enable: yes
   custom_css: []
