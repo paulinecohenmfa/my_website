@@ -6,4 +6,4 @@ slug: blogs
 title: My various projects
 ---
 
-Please find below my various blogs. 
+Please find below my various projects and my story. 
