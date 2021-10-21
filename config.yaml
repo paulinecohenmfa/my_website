@@ -70,7 +70,6 @@ params:
       - name: Get to know me
         url: https://pauline-portfolio.netlify.app/blogs/resume/
       - name: Blogs
-      showcase:
         title : My various projects
         url: https://pauline-portfolio.netlify.app/blogs/
     menu: Menu
