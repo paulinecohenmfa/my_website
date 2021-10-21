@@ -1,0 +1,1094 @@
+---
+categories:  
+- ""    #the front matter should be like the one found in, e.g., blog2.md. It cannot be like the normal Rmd we used
+- ""
+date: "2021-10-21"
+description: Airbnb R Studio Project, LBS # the title that will show up once someone gets to this page
+draft: false
+image: Bangkok.jpg # save picture in \static\img\blogs. Acceptable formats= jpg, jpeg, or png . Your iPhone pics wont work
+
+keywords: ""
+slug: lbs_3 # slug is the shorthand URL address... no spaces plz
+title: A model to forecast Airbnb prices in Bangkok
+---
+
+
+```{r setup, include=FALSE}
+# leave this chunk alone
+options(knitr.table.format = "html") 
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, 
+  comment = NA, dpi = 300)
+```
+
+
+```{r load-libraries, echo=FALSE}
+
+library(tidyverse) # the usual stuff: dplyr, readr, and other goodies
+library(lubridate) # to handle dates
+library(GGally) # for correlation-scatter plot matrix
+library(ggfortify) # to produce residual diagnostic plots
+library(rsample) # to split dataframe in training- & testing sets
+library(janitor) # clean_names()
+library(broom) # use broom:augment() to get tidy table with regression output, residuals, etc
+library(huxtable) # to get summary table of all models produced
+library(kableExtra) # for formatting tables
+library(moderndive) # for getting regression tables
+library(skimr) # for skim
+library(mosaic)
+library(leaflet) # for interactive HTML maps
+library(tidytext)
+library(viridis)
+library(vroom)
+library(car)
+```
+
+```{r}
+# load the library for Economist Theme
+library("ggthemes")
+if(!require(pacman))install.packages("pacman")
+
+pacman::p_load('dplyr', 'tidyr', 'gapminder',
+               'ggplot2',  'ggalt',
+               'forcats', 'R.utils', 'png', 
+               'grid', 'ggpubr', 'scales',
+               'bbplot')
+```
+
+
+
+In your final group assignment you have to analyse data about Airbnb listings and fit a model to predict the total cost for two people staying 4 nights in an AirBnB in a city. You can download AirBnB data from [insideairbnb.com](http://insideairbnb.com/get-the-data.html){target="_blank"}; it was originally scraped from airbnb.com. 
+
+The following [Google sheet](https://docs.google.com/spreadsheets/d/1QrR-0PUGVWvDiVQL4LOk7w-xXwiDnM3dDtW6k15Hc7s/edit?usp=sharing) shows which cities you can use; please choose one of them and add your group name next to it, e.g., A7, B13. No city can have more than 2 groups per stream working on it; if this happens, I will allocate study groups to cities with the help of R's sampling.
+
+
+All of the listings are a GZ file, namely they are archive files compressed by the standard GNU zip (gzip) compression algorithm. You can download, save and extract the file if you wanted, but `vroom::vroom()` or `readr::read_csv()` can immediately read and extract this kind of a file. You should prefer `vroom()` as it is faster, but if vroom() is limited by a firewall, please use `read_csv()` instead.
+
+
+`vroom` will download the *.gz zipped file, unzip, and provide you with the dataframe. 
+
+
+```{r load_data, echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE}
+# Cache= True will help us to download the documents once 
+
+# use cache=TRUE so you dont donwload the data everytime you knit
+
+listings <- vroom("http://data.insideairbnb.com/thailand/central-thailand/bangkok/2021-09-28/data/listings.csv.gz") %>% 
+       clean_names()
+
+```
+
+
+Even though there are many variables in the dataframe, here is a quick description of some of the variables collected, and you can find a [data dictionary here](https://docs.google.com/spreadsheets/d/1iWCNJcSutYqpULSQHlNyGInUvHg2BoUGoNRIGa6Szc4/edit#gid=982310896)
+
+- `price` = cost per night 
+- `property_type`: type of accommodation (House, Apartment, etc.)
+- `room_type`:
+
+  - Entire home/apt (guests have entire place to themselves)
+  - Private room (Guests have private room to sleep, all other rooms shared)
+  - Shared room (Guests sleep in room shared with others)
+
+- `number_of_reviews`: Total number of reviews for the listing
+- `review_scores_rating`: Average review score (0 - 100)
+- `longitude` , `latitude`: geographical coordinates to help us locate the listing
+- `neighbourhood*`: three variables on a few major neighbourhoods in each city 
+
+
+
+# Exploratory Data Analysis (EDA)
+
+In the [R4DS Exploratory Data Analysis chapter](http://r4ds.had.co.nz/exploratory-data-analysis.html){target="_blank"}, the authors state:
+
+> "Your goal during EDA is to develop an understanding of your data. The easiest way to do this is to use questions as tools to guide your investigation... EDA is fundamentally a creative process. And like most creative processes, the key to asking quality questions is to generate a large quantity of questions."
+
+Conduct a thorough EDA. Recall that an EDA involves three things:
+
+* Looking at the raw values.
+    * `dplyr::glimpse()`
+* Computing summary statistics of the variables of interest, or finding NAs
+    * `mosaic::favstats()`
+    * `skimr::skim()`
+* Creating informative visualizations.
+    * `ggplot2::ggplot()`
+        * `geom_histogram()` or `geom_density()` for numeric continuous variables
+        * `geom_bar()` or `geom_col()` for categorical variables
+    * `GGally::ggpairs()` for scaterrlot/correlation matrix
+        * Note that you can add transparency to points/density plots in the `aes` call, for example: `aes(colour = gender, alpha = 0.4)`
+        
+You may wish to have a level 1 header (`#`) for your EDA, then use level 2 sub-headers (`##`) to make sure you cover all three EDA bases. **At a minimum** you should address these questions:
+
+- How many variables/columns? How many rows/observations?
+- Which variables are numbers?
+- Which are categorical or *factor* variables (numeric or character variables with variables that have a fixed and known set of possible values?
+- What are the correlations between variables? Does each scatterplot support a linear relationship between variables? Do any of the correlations appear to be conditional on the value of a categorical variable?
+
+At this stage, you may also find you want to use `filter`, `mutate`, `arrange`, `select`, or `count`. Let your questions lead you! 
+
+> In all cases, please think about the message your plot is conveying. Don’t just say "This is my X-axis, this is my Y-axis", but rather what’s the **so what** of the plot. Tell some sort of story and speculate about the differences in the patterns in no more than a paragraph.
+
+## Looking at the raw values
+```{r}
+glimpse(listings)
+skim(listings)
+```
+
+
+You may wish to have a level 1 header (`#`) for your EDA, then use level 2 sub-headers (`##`) to make sure you cover all three EDA bases. **At a minimum** you should address these questions:
+
+- How many variables/columns? How many rows/observations? 
+> We have 17518 rows and 74 columns, 23 character, 5 date, 9 logical, 37 numeric values. 
+
+- Which variables are numbers?
+> We can see there are 37 numerical variables such as id, scrape_id, bedrooms, accomodates etc. What is interesting to notice is that variables such as prices or bathrooms are not number but character. Later on the code, we will need to convert it into numerical values. 
+
+
+- Which are categorical or *factor* variables (numeric or character variables with variables that have a fixed and known set of possible values?
+
+> As mentionned earlier, prices are character variables but should be numerical. Same for bathrooms. For prices, we will need to take out the $ and convert it into parse_value. For bathrooms text, we just need to take out the text from the columns. 
+
+
+- What are the correlations between variables? Does each scatterplot support a linear relationship between variables? Do any of the correlations appear to be conditional on the value of a categorical variable?
+
+> In order for us to do the correlations between the factors, we first needed to clean the data. In fact, a lot of columns have missing values, or text characters. The first thing we need to look at is the correlation between prices and different factors. We asked ourselves multiples questions: Do the neighborhood has an impact on the price? do the number of beds, bathrooms exert upward pressure on prices? are elevators important for customers? does the host overall quality (superhost, reviews) is important in our analysis? We will answer our questions first with the use of plots then by properly measuring the regression and the overall significance or our model. 
+
+```{r}
+# We will generate the density plot for the numerical column 
+#No of bed density plot 
+ggplot(listings)+ 
+  geom_density(aes(x=beds))+
+  labs(title="No of Bed Density Plot")+ 
+  theme_economist() +
+  scale_colour_economist()
+
+#No of accommodates
+ggplot(listings)+ 
+  geom_density(aes(x=accommodates))+
+  labs(title="Accomodates density Plot")+ 
+  theme_economist() +
+  scale_colour_economist()
+
+# Review Score Rating density plot 
+ggplot(listings)+ 
+  geom_density(aes(x=review_scores_rating))+
+  labs(title="Review_score_rating Density Plot")+ 
+  theme_economist() +
+  scale_colour_economist()
+
+# Number of Review plot 
+ggplot(listings)+ 
+  geom_density(aes(x=number_of_reviews))+
+  labs(title="Number_of_reviews Density Plot")+ 
+  theme_economist() +
+  scale_colour_economist()
+
+```
+> In most of the density plot we can see that there are many outliers which we need to remove so that it would not impact our regression price equation. Start with the number of bed we can see that majority of hte data have lower than 10 beds. For the number of accmodates data lie between 2 and 5 people. While most of hte property has high reveiw rating scores.The number of reviews also has a large amount of outlier as well. 
+
+
+
+
+```{r}
+# Create the favstats for the numerical column in the listings dataframe 
+favstats(~beds, data= listings) 
+favstats(~accommodates, data= listings) 
+favstats(~review_scores_rating, data= listings) 
+favstats(~number_of_reviews, data= listings) 
+```
+> The number of bed has the mean more than median so it is right skewed and has many missing values which we need to clear later on.For the number of accomodates has similar pattern as the no of beds where mean more than median this may be because there are some accomodations that are very big and can accomodate more people. There are a lot of missing reviews as well because after renting an airbnb people don't automatically put a review on airbnb. We will later on delete all N/A to have a cleaner database. This column will be difficult to use because there are a lot of missing reviews. 
+
+At this stage, you may also find you want to use `filter`, `mutate`, `arrange`, `select`, or `count`. Let your questions lead you! 
+
+> In all cases, please think about the message your plot is conveying. Don’t just say "This is my X-axis, this is my Y-axis", but rather what’s the **so what** of the plot. Tell some sort of story and speculate about the differences in the patterns in no more than a paragraph.
+
+
+## Data wrangling
+
+Once you load the data, it's always a good idea to use `glimpse` to see what kind of variables you have and what data type (`chr`, `num`, `logical`, `date`, etc) they are. 
+
+Notice that some of the price data (`price`) is given as a character string, e.g., "$176.00"
+
+Since `price` is a quantitative variable, we need to make sure it is stored as numeric data `num` in the dataframe. To do so, we will first use `readr::parse_number()` which drops any non-numeric characters before or after the first number
+
+```
+listings <- listings %>% 
+  mutate(price = parse_number(price))
+```
+Use `typeof(listing$price)` to confirm that `price` is now stored as a number.
+
+> As the file was very large, with a lot of missing values and columns we could not use, we first began to clean the database. 
+> We had to simplify a lot of data because many of the interesting columns could not be handled easily. For example, we changed every TRUE/FALSE into 1 or 0 to use it in the regressions. Another example is the number of bathrooms: we deleted the text to only keep the number and convert everything into numerical data (using parse_data). We deleted the dollar for prices For the neighborhoods, we created two groups, one which includes the top city and the other one with the rest of the neighborhoods. 
+
+```{r}
+# We start by converting price from string to number and remove all of the character in the column 
+listings$price <- as.numeric(gsub("[\\$,]", "", listings$price))
+
+data <- listings %>% 
+
+# bathrooms
+# Using mutate_at to filter the text out from the bathroom column and leave only the number of bathroom  
+# Half equal to 0.5 as we assume that they share the bathroom ( 2 people for one bathroom)  
+# Share_half equal to 0.25 we assume that there are 4 people using the bathroom
+# parse_number to change the string bathroom string text format into number.  
+  mutate_at("bathrooms_text", str_replace, "bath", "")%>%
+  mutate_at("bathrooms_text", str_replace, "shared", "") %>%
+  mutate_at("bathrooms_text", str_replace, "private", "") %>%
+  mutate_at("bathrooms_text", str_replace, "s", "") %>%
+  mutate_at("bathrooms_text", str_replace, "Shared-half-", "0.25") %>%
+  mutate_at("bathrooms_text", str_replace, "Private-half-", "0.5") %>%
+  mutate_at("bathrooms_text",str_replace, "Half-", "0.5") %>%
+  
+  mutate(
+# Transform host_is_superhost, host_identity_verified and instant_bookable into True = 1 and False = 0
+         host_is_superhost = as.numeric(factor(host_is_superhost))-1,
+         host_identity_verified = as.numeric(factor(host_identity_verified))-1,
+         instant_bookable = as.numeric(factor(instant_bookable))-1,
+         log_price = log10(price),
+         
+# Change the bathroom string format into number 
+         bathrooms_text = parse_number(bathrooms_text))
+
+```
+
+## Property types
+
+
+Next, we look at the variable `property_type`. We can use the `count` function to determine how many categories there are their frequency. What are the top 4 most common property types? What proportion of the total listings do they make up? 
+
+Since the vast majority of the observations in the data are one of the top four or five property types, we would like to create a simplified version of `property_type` variable that has 5 categories: the top four categories and `Other`. Fill in the code below to create `prop_type_simplified`.
+
+```
+listings <- listings %>%
+  mutate(prop_type_simplified = case_when(
+    property_type %in% c("______","______", "______","______") ~ property_type, 
+    TRUE ~ "Other"
+  ))
+  
+```
+Use the code below to check that `prop_type_simplified` was correctly made.
+
+```
+listings %>%
+  count(property_type, prop_type_simplified) %>%
+  arrange(desc(n))        
+```        
+
+Airbnb is most commonly used for travel purposes, i.e., as an alternative to traditional hotels. We only want to include listings in our regression analysis that are intended for travel purposes:
+
+- What are the  most common values for the variable `minimum_nights`? 
+- Is there any value among the common values that stands out? 
+- What is the likely intended purpose for Airbnb listings with this seemingly unusual value for `minimum_nights`?
+
+> The 3 most common minium nights are 1, 2, 30 nights. Among the common values, the ones with 30 nights stand out as other common minimum nights are relative shorter, less than 10 nights. The likley intended purpose for the listing might be intended for the long-terms stay of monthly pay.
+To add on, there are listings that have more than 350 minimum nights. This could be the properties that are meant to be under renovation, but put a long minimum night so they would not need to go through the burden of listing them again
+
+Filter the airbnb data so that it only includes observations with `minimum_nights <= 4`
+
+```{r property_type}
+data %>% 
+  count(property_type) %>%
+  arrange(desc(n))
+
+data <- data %>% 
+  mutate(prop_type_simplified = case_when(
+           property_type %in% c("Entire rental unit",
+                                "Entire condominium (condo)", 
+                                "Private room in rental unit",
+                                "Private room in condominium (condo)") ~ property_type,
+           TRUE ~ "Other"))
+
+data$prop_type_simplified <- as.numeric(factor(data$prop_type_simplified))-1
+# 0 : Entire condominium
+# 1 : Entire rental unit
+# 2 : Other
+# 3 : Private room in condominium (condo)
+# 4 : Private room in rental unit
+
+```
+
+```{r room_type}
+data %>% 
+  count(room_type) %>%
+  arrange(desc(n))
+
+# Create the number for each room_types 
+data$room_type <- as.numeric(factor(data$room_type))-1
+data %>% count(room_type)
+# 0 : Entire home/apt
+# 1 : Hotel room
+# 2 : Private room
+# 3 : Shared room
+
+```
+> The majority of accomodations in Thailand is entire room and private room. We should have higher prices for those than shared rooms and hotels.
+
+## Creating informative visualizations
+
+# Data Visualization 
+
+## Introduction 
+
+Before we do the informative visualization with our initial assumption compared with the real output, we need to clean our data and we will named its data_visualization for the visualization purpose. 
+
+```{r}
+# Data visulization data cleaning
+
+
+# select the column that want to visualize
+data_visualisation <- listings %>% 
+  select(id, description, host_is_superhost, host_listings_count, host_identity_verified, neighbourhood_cleansed, latitude, longitude, property_type, room_type, accommodates, bathrooms_text, bedrooms, beds, amenities, price, minimum_nights, maximum_nights, number_of_reviews, review_scores_rating, review_scores_accuracy, review_scores_cleanliness, review_scores_checkin, review_scores_communication, review_scores_location, review_scores_value)
+
+# We start by converting price from string to number and remove all of the character in the column 
+data_visualisation$price <- as.numeric(gsub("[\\$,]", "", data_visualisation$price))
+
+# Create the city center variable to sort the neighbourhood based on city center and non city center 
+CityCenter <- c("Bang Rak" , "Din Daeng" , "Huai Khwang" , "Khlong Tei" , "Parthum Wan", "Ratchathewi" , "Sathorn", "Vadhana", "Samphantawong")
+
+# filter the minimum night <= 4 as we focus on the 4 nights stay if it is more than 4 nights it will force us to stay 5 nights which is not what we want to analyze  
+data_visualisation <- data_visualisation %>% 
+  # min_nights & max_nights
+  filter(minimum_nights <= 4,
+         maximum_nights >= 4) %>% 
+  
+# bathrooms
+# Using mutate_at to filter the text out from the bathroom column and leave only the number of bathroom  
+# Half equal to 0.5 as we assume that they share the bathroom ( 2 people for one bathroom)  
+# Share_half equal to 0.25 we assume that there are 4 people using the bathroom
+# parse_number to change the string bathroom string text format into number.  
+  mutate_at("bathrooms_text", str_replace, "bath", "")%>%
+  mutate_at("bathrooms_text", str_replace, "shared", "") %>%
+  mutate_at("bathrooms_text", str_replace, "private", "") %>%
+  mutate_at("bathrooms_text", str_replace, "s", "") %>%
+  mutate_at("bathrooms_text", str_replace, "Shared-half-", "0.25") %>%
+  mutate_at("bathrooms_text", str_replace, "Private-half-", "0.5") %>%
+  mutate_at("bathrooms_text",str_replace, "Half-", "0.5") %>%
+  
+# Convert price into log scale as the data is heavily skewed to make the visualization more clear  
+  mutate(log_price = log10(price),
+         
+# neighborhood_cleansed 1=city center; 0=non city center
+         city_center = ifelse(neighbourhood_cleansed %in% CityCenter, 1, 0),
+         
+# Transform the superhost and host identify in to True=1 and False =0
+         host_is_superhost = as.numeric(factor(host_is_superhost))-1,
+         host_identity_verified = as.numeric(factor(host_identity_verified))-1,
+         
+# Change the bathroom string format into number 
+         bathrooms_text = parse_number(bathrooms_text),
+         
+# has elevator /air conditioning or not as Bangkok is very hot so air conditioning may have effect on price as the proprty owner need to pay for extra electricity bill. Elevator may drive the total electricity cost of the property so it may rise the rental cost. 
+         has_elevator = as.numeric(factor(str_detect(amenities, "Elevator")))-1,
+         has_airconditioner = as.numeric(factor(str_detect(amenities, "Air conditioning")))-1,
+         
+# We create the column from the description column that whether the property near BTS or MRT ( public transportation in Thailand)  or not , if it near public transportation =1 , not near public transportation =0 
+         near_BTS_MRT = as.numeric(factor(str_detect(description, "BTS")|str_detect(description, "MRT")))-1,
+         
+# Group the property types based on largest 4 property types and put all other property types into other column  
+         prop_type_simplified = case_when(
+           property_type %in% c("Entire rental unit",
+                                "Entire condominium (condo)", 
+                                "Private room in rental unit",
+                                "Private room in condominium (condo)") ~ property_type,
+           TRUE ~ "Other") 
+    )
+
+# removing NAs
+Na_cols <- data_visualisation[, c("host_is_superhost", "host_listings_count", "host_identity_verified", "beds", "review_scores_rating", "near_BTS_MRT", "bathrooms_text")]
+data_visualisation <- data_visualisation[complete.cases(Na_cols),] # Omit NAs by columns
+
+
+
+```
+
+```{r}
+# Create the number for each property_types for data visualization 
+data_visualisation<- data_visualisation %>%
+  mutate(prop_type_simplified = case_when(
+    property_type %in% c("Entire rental unit","Entire condominium (condo)", "Private room in rental unit","Private room in condominium (condo)") ~ property_type, 
+    TRUE ~ "Other"
+  ))
+data_visualisation %>% count(prop_type_simplified)
+
+data_visualisation$prop_type_simplified <- as.numeric(factor(data_visualisation$prop_type_simplified))-1
+data_visualisation %>% count(prop_type_simplified)
+
+
+# 0 : Entire condominium
+# 1 : Entire rental unit
+# 2 : Other
+# 3 : Private room in condominium (condo)
+# 4 : Private room in rental unit
+#have more than 350 minimum nights. This could be the properties that are meant to be under renovation, but put a long minimum night so they would not need to go through the burden of listing them again
+
+data_visualisation %>% 
+  count(room_type) %>%
+  arrange(desc(n))
+
+data_visualisation$room_type <- as.numeric(factor(data_visualisation$room_type))-1
+data_visualisation %>% count(room_type)
+# 0 : Entire home/apt
+# 1 : Hotel room
+# 2 : Private room
+# 3 : Shared room
+
+
+
+
+```
+
+
+First we will graph the price and log price distribution graph.
+```{r}
+# plot the price distribution 
+
+ggplot(data_visualisation,aes(x=price))+
+  geom_histogram()+
+  labs(title= "Price Distribution",
+       x= "Price per night in Thai baht",
+       y="count")+ 
+  theme_economist() +
+  scale_colour_economist()
+
+```
+> The first thing we wanted to do was to plot the price distributions. Here, it is almost impossible to see if the prices follow a normal distrubtion. We need to compute the log-prices. Please see below our code. 
+
+```{r}
+# plot the log price distribution 
+
+ggplot(data_visualisation,aes(x=log_price))+
+  geom_histogram()+
+  labs(title= "Log Price Distribution",
+       x= "Log Price",
+       y="count")+
+  theme_economist() +
+  scale_colour_economist()
+
+```
+> The distribution is closer than a normal distribution but we still need to test it.
+
+```{r}
+# Check whether price /log_price is normal distribution 
+library(tseries)
+shapiro.test(data_visualisation$price[0:5000])
+jarque.bera.test(data_visualisation$price)
+t.test(~log_price,data=data_visualisation)
+
+
+```
+We can see from the graph that price is heavily skewed so we will use log price in our analysis. 
+Wait for more analysis from Pauline 
+
+> We computed other tests, here as well we can see the p-value is always very small. We can reject the null hypothesis that the prices follow a normal distrubtion. Indeed, we can see on the graph the mean is around 3 and not 0.
+
+ืNext we will do the correlation matrix and correlation table to visualize the relationship of our variables
+
+```{r}
+matrix <- data_visualisation %>%
+  select(log_price, host_is_superhost, host_listings_count, prop_type_simplified, room_type, accommodates, bathrooms_text, beds, number_of_reviews, review_scores_rating,city_center,has_elevator,has_airconditioner,near_BTS_MRT)
+cor_table <- cor(matrix)
+
+data_visualisation %>%
+  select(log_price, host_is_superhost, host_listings_count, host_identity_verified, prop_type_simplified, room_type, accommodates, bathrooms_text, beds, number_of_reviews, review_scores_rating,city_center,has_elevator,has_airconditioner,near_BTS_MRT) %>% 
+ggpairs(matrix(aes(alpha=0.6,size=3,corSize=3)),title="Correlogram of price with other variables")+
+  theme_economist() +
+  scale_colour_economist()+ 
+  theme(axis.text = element_text(size = 3),
+    axis.title = element_text(size = 3),
+    legend.background = element_rect(fill = "white"),
+    panel.grid.major = element_line(colour = NA),
+    panel.grid.minor = element_blank(),
+    panel.background = element_rect(fill = "grey95",)
+  )
+
+```
+> As there are many x variables of interest in the plot, we decide to plot the corrplot to better visualize the data. 
+
+```{r}
+# Create the correlation table in color to see the effect of correlation of each variable relationship
+library (corrplot)
+corrplot(cor_table, method = "color")+
+    theme(text = element_text(size=2))
+```
+> We can already observe some results. Indeed, we first see that prices are very correlated with accomodates, and indeed the number of accomodates should exert upward pressure on prices. We also see that room type is negatively correlated with prices. It makes sense as we ranked our data from private room to share rooms, so if we have larger numbers for share rooms it should indeed decrease the price. City_Center is not as correlated to prices as we could have thought but it still positively correlated. We will test the significance of the model later on. 
+
+Let look at some key data statistic of our dataframe before we plot the graph for each factor. 
+
+```{r}
+skim(data)
+
+favstats(data$host_is_superhost)
+favstats(data$host_listings_count)
+favstats(data$host_identity_verified)
+favstats(data$beds)
+favstats(data$review_scores_rating)
+favstats(data$accommodates)
+favstats(data$price)
+favstats(data$minimum_nights)
+favstats(data$maximum_nights)
+favstats(data$number_of_reviews)
+
+# Note that for the column bedrooms ( we not use it so we not remove the missing column, and the column reviews_scores_accuracy, review_scores_accuracy , review_scores_cleanliness, review_scores_checkin ,review_scores_communication, review_scores_location , review_scores_value we keep those columns in the data frame first and not remove NAs as if the review_scores_rating is not significant we will start to use these columns to test for our regression ( then we will start to remove Nas, if we remove those Nas now it will cut a lot of column)
+```
+> Here, we did some data exploration, to know more about traditionnal statistics such as the mean, the volatility and the missing values. A lot of values are missing for review score rating. We already explained this earlier. What we discover also is that a lot of values are missing for accomodations. It is more difficult to draw a conclusion using those columns because the missing values are so high it could change the whole interpretation. 
+
+Before we do further data visualization parts. we would like to outline the sections of this part into 3 main parts: 1. Local insights 2. Air Bnb application insights 3. Property insights. 
+
+### Local Insight Assumption Visualization 
+
+In this section, out team use the local insights for Bangkok area to classifed the variable that we believe that will have imapct on the price of the rental property. 
+
+#### Near public transporation 
+Our group make the assumption that if the property is near the public transportation it will have the impact on the price. In Thailand, the public transportation call BTS and MRT so we categories those information from the property details column. 
+
+```{r}
+# Create the box plot label 
+
+
+# plot the boxplot near_BTS_MRT
+
+ggplot(data_visualisation,aes(x=near_BTS_MRT,y=log_price))+
+  geom_boxplot()+
+  facet_wrap(~near_BTS_MRT,labeller=labeller(cyl=c("0"="not near bts_MRT","1"="near BTS_MRT")))+
+  theme_economist()+
+  labs(title="box plot of accomodation near or not near BTS_MRT",
+       caption="0 mean not near BTS_MRT and 1 mean near BTS_MRT")
+  
+
+```
+> It is very diffuclt to see if the near_BTS_MRT has an impact on prices. We can see it is slighly higher but the difference is almost nul. Our first intuition was that to be near public transportations would have exerted upward pressure on prices, as it is more convenient then to access the whole city. But when we look at the results, we see the difference is very small so it does not have a big impact on prices, as we previously thought. 
+
+#### Air Conditioner 
+Bangkok always has high temperature throughout the year;therefore, it is crucial to have air conditioner. In this case we believe that property that has airconditioner will have higher price premium as it will increase the electricity cost. 
+
+```{r}
+# plot the boxplot for the property that has air_con or no air con 
+
+ggplot(data_visualisation,aes(x=has_airconditioner,y=log_price))+
+  geom_boxplot()+
+  facet_wrap(~has_airconditioner)+
+  theme_economist()+
+  labs(title="box plot of accomodation have or not have air con",
+       caption="0 mean no air con and 1 mean have air con")
+  
+```
+> Here again, we see that aircon has a small impact on prices. Our intuition was that since air conditionner is very important in Thailand, it should have had a bigger impact on prices. But actually, we also noticed that 90% of the data has airconditionner so that it is why it does not change too much the average price. 
+
+#### City Center 
+
+We use our local insights from our team members to classifed the neighbourhood based on the area that is in the city center (normally has high reatal cost ) and non-city center.
+
+```{r}
+# plot the boxplot for the property that is in city center or not in city center  
+
+ggplot(data_visualisation,aes(x=city_center,y=log_price))+
+  geom_boxplot()+
+  facet_wrap(~city_center)+
+  theme_economist()+
+  labs(title="box plot of accomodation in city center or not",
+       caption="0 = not city center and 1= city center")
+
+```
+
+> We also thought that properties near the city center would increase prices. Here,we a slight upward trend on prices but not that sizeable. It is mainly due to the fact that there are a lot of outliers in the dataset. We will clean it for the regression.   
+
+
+### AirBnB Application Analysis 
+In this subsection we will explore on the factors that is related to Airbnb specific factors such as the super host , no of reviews and average review rating.
+
+#### Super host 
+Super host is like a badge that Airbnb will give to the host that has a good feedback from cusotmer so we believe that thisk factor will have some impact on the price. 
+```{r}
+# plot the boxplot 
+
+ggplot(data_visualisation,aes(x=host_is_superhost,y=log_price))+
+  geom_boxplot()+
+  facet_wrap(~host_is_superhost)+
+  theme_economist()+
+  labs(title="box plot of accomodation host is superhost or not",
+       caption="0 = not superhost and 1= superhostr")
+
+```
+> The superhost variable impact is almost impossible to see. It means that customers does not really pay attention to this variable when renting a property, that is why it does not change the price a lot. 
+
+#### No of host listing 
+We has assumption that the higher the number of property list by host the higher the price as those host will have more experience in renting out the property and do the Airbnb for business. 
+
+```{r}
+# plot scatter plot 
+
+ggplot(data_visualisation,aes(x=host_listings_count,y=log_price))+
+  geom_point()+
+  xlim(0,250)+
+  theme_economist()+
+  labs(title="Log_price vs host property listing")
+
+```
+> Host property listings does not have an impact on prices as there is no relationship between the number of listings of a host and the prices. The host properly listings only tells us if the host is a profesionnal (renting a lot of houses) or a particulier. 
+
+#### No of Reviews & Review Score Rating
+> In this part we believe that the no of review will have no impact on the price as it only count only the quantity meaning that those review can be postive or negative. On the other hand we believe that the review score rating will has some impact on price of the property as the higher the review score mean the property has a good feedback. 
+
+```{r}
+# plot scatter plot for no of review 
+
+ggplot(data_visualisation,aes(x=number_of_reviews,y=log_price))+
+  geom_point()+
+  theme_economist()+
+  labs(title="Log_price vs number of property reviews")
+
+```
+> suprisingly, it is diffult to see a clear relationship between prices and number of property reviews. Indeed, the number of property reviews does not tell us if the review is positive or negative. That is why we cannot see a real impact on prices. 
+
+```{r}
+# plot scatter plot for review score rating 
+
+ggplot(data_visualisation,aes(x=review_scores_rating,y=log_price))+
+  geom_point()+
+  theme_economist()+
+  labs(title="Log_price vs Reviews score rating")
+
+```
+> Since the majority of review scores rating are between 4 and 5, we see that the reviews score rating has an slight positive impact on prices. Before 4, it is hard to see a clear relationship, probably due to the fact that there are less data available.  
+
+### General Property Assumption 
+
+In this sub-part we will analyze the general factors which has the impact on the property price such as the no of bed room , no of bath room , property types and room types 
+
+
+#### Property types 
+
+We have some assumption that there might be a difference in the price of the property based on its types. 
+
+```{r}
+# plot the boxplot for property types 
+
+ggplot(data_visualisation,aes(x=prop_type_simplified,y=log_price))+
+  geom_boxplot()+
+  facet_wrap(~prop_type_simplified)+
+  theme_economist()+
+  labs(title="Box Plot of Property Types",
+       caption="0 =Entire condomonium 1= Entire rental unit 2=other 3=Private room condo 4=private room rental unit" )
+
+
+
+# Dummy Variables meaning 
+# 0 : Entire condominium
+# 1 : Entire rental unit
+# 2 : Other
+# 3 : Private room in condominium (condo)
+# 4 : Private room in rental unit
+
+```
+
+> It is hard to see a relationship between property types and prices. It maybe due to the fact that there are so many variables that impact the prices that it is difficult to see the relationship between only one variable. 
+
+#### Room types 
+
+```{r}
+# plot the boxplot for room type 
+
+ggplot(data_visualisation,aes(x=room_type,y=log_price))+
+  geom_boxplot()+
+  facet_wrap(~room_type)+
+  theme_economist()+
+  labs(title="Box Plot of Room Types",
+       caption="0 =Entire home/apt 1= Hotel room 2=Private room 3=Shared room " )
+
+# Dummy Variables meaning 
+# 0 : Entire home/apt
+# 1 : Hotel room
+# 2 : Private room
+# 3 : Shared room
+```
+
+> Here, we see a clear relationship between room type and prices. If the room is shared, it will be less expensive than it is a entire home, or a hotel. It makes sense, as a share room should by definition cost less. 
+
+#### No of beds and bathroom 
+
+We have some prediction that higher the no of beds and no of bathroom ,the price should be higher. 
+```{r}
+# plot scatter plot 
+
+ggplot(data_visualisation,aes(x=beds,y=log_price))+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  theme_economist()+
+  labs(title="Log_price vs no of beds")
+
+```
+
+> The number of beds has a direct impact on prices. The highest the number of beds, the highest the price. It makes sense as the highest the number of beds, the more people can be in the house, so the price should be higher. We really see a clear upward trend.  
+
+```{r}
+# plot scatter plot 
+
+ggplot(data_visualisation,aes(x=bathrooms_text,y=log_price))+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  theme_economist()+
+  labs(title="Log_price vs no of bathrooms")
+
+```
+> The same thing happens in bathrooms. The more bathrooms available, the more people the house can welcome. We see that the upward trend is slighly below than the one for the number of beds. Again it makes sense as people usually share the same bathroom but sleep in one bed.  
+
+#### Elevator
+We have the assumption that the property with elevators mean that it is in the higher level floor mean better view and also the elevator will increase the eletricity price for the host so it should have positive correlation to the price.
+```{r}
+# plot the boxplot 
+
+ggplot(data_visualisation,aes(has_elevator,y=log_price))+
+  geom_boxplot()+
+  facet_wrap(~has_elevator)+
+  theme_economist()+
+  labs(title="box plot of accomodation has elevator or not",
+       caption="0 = no elevator and 1=have elevator")
+
+```
+> Elevators exert a slight positive pressure on prices as well. If the airbnb is located in the last floor, an elevator would make a bigger difference on prices. 
+
+### Mapping 
+
+At the end of our visualization part we would like to illustrate the maps for each of the property types in a meaningful ways. 
+
+
+At the end of our visualization part we would like to illustrate the maps for each of the property types in a meaningful ways. 
+
+```{r}
+# plot scatter plot 
+
+ggplot(data_visualisation,aes(x=review_scores_location,y=log_price))+
+  geom_point()+
+  geom_smooth(method="lm")+
+  theme_economist()+
+  labs(title="Log_price vs review scores location")
+
+
+```
+> As we already mentionned it, since a lot of review scores location are missing, it is difficult to draw an accurate conclusion. We still see a slightly upward trend. 
+
+```{r, out.width = '80%'}
+# Map neighborhood 
+
+
+
+#Create the color, for the whether the property is near the city center or outside center. 
+
+
+
+getColor <- colorFactor(c("navy","red"),domain=c(0,1))
+
+
+
+leaflet(data = data_visualisation) %>% 
+  addProviderTiles("OpenStreetMap.Mapnik") %>% 
+  addCircleMarkers(lng = ~longitude, 
+                   lat = ~latitude, 
+                   radius = ~price/3000, 
+                   color = ~getColor(city_center) , 
+                   fillOpacity = 0.2, 
+                   label = ~price,
+                   ) 
+```
+
+> For the mapping we color the map based on our local knowledge of which neighbourhood is considered as city center. The city center property is red and non-city center is blue. Moreover, to make a compaision we create the radius size based on its price. We can see from the map that the red fot ( city center) overall has larger radius than blue dot, despite some blue dots are outlier and has high radius ( this might due to the fact that even it is outside city but you can rent the whole property by yourself for eg full house). Therefore, we believe that the city center will be significant predictor for the price. 
+
+
+# Regression Analysis
+
+For the target variable $Y$, we will use the cost for two people to stay at an Airbnb location for four (4) nights. 
+
+Create a new variable called `price_4_nights` that uses `price`, and `accomodates` to calculate the total cost for two people to stay at the Airbnb property for 4 nights. This is the variable $Y$ we want to explain.
+
+Use histograms or density plots to examine the distributions of `price_4_nights` and `log(price_4_nights)`. Which variable should you use for the regression model? Why?
+
+Fit a regression model called `model1` with the following explanatory variables: `prop_type_simplified`, `number_of_reviews`, and `review_scores_rating`. 
+
+
+
+We want to determine if `room_type` is a significant predictor of the cost for 4 nights, given everything else in the model. Fit a regression model called model2 that includes all of the explanatory variables in `model1` plus `room_type`. 
+
+## Data preparation
+```{r removing NAs}
+Na_cols <- data[, c("host_is_superhost", "host_listings_count", "host_identity_verified", "beds", "review_scores_rating", "bathrooms_text", "number_of_reviews", "description")]
+data_reg <- data[complete.cases(Na_cols),] # Omit NAs by columns
+```
+
+```{r filter out out liers}
+
+# Checking for outliers
+data %>% count(bathrooms_text)
+data %>% count(accommodates)
+
+data_reg <- data_reg %>% 
+  
+  filter(
+  # removing out-liers and observations not suitable for our analysis
+  # filter the minimum night <= 4 as we focus on the 4 nights stay if it is more than 4 nights it will force us to stay 5 nights which is not what we want to analyze
+         minimum_nights <= 4,
+         maximum_nights >= 4,
+         host_listings_count < 1000,
+         host_listings_count >= 1,
+         beds <= 10,
+         bathrooms_text <= 10,
+         accommodates>= 2) %>% 
+  
+  # create the dependent variable in regression
+  mutate(price_4_nights = case_when(
+           room_type == 3~price/accommodates*2*4,
+           TRUE ~ price*4)) %>% 
+  
+  # filter out the price out-liers
+  filter(price_4_nights <= 40000,
+         price_4_nights > 4000) %>% 
+  
+  # compute log price
+  mutate(lg_price_4_nights = log10(price_4_nights))
+```
+
+```{r creating new features for regression}
+# Create the city center variable to sort the neighbourhood based on city center and non city center 
+CityCenter <- c("Bang Rak" , "Din Daeng" , "Huai Khwang" , "Khlong Tei" , "Parthum Wan", "Ratchathewi" , "Sathorn", "Vadhana", "Samphantawong")
+
+data_reg <- data_reg %>% 
+  mutate(
+  # creating new feature: length of amenities
+         len_amenities = nchar(amenities),
+  
+  # creating new feature: 1 = city center; 0 = non city center
+         city_center = ifelse(neighbourhood_cleansed %in% CityCenter, 1, 0),
+  
+  
+  # creating new features: has elevator/air conditioner/gym or pool/kitchen or not
+  # has elevator /air conditioning or not as Bangkok is very hot so air conditioning may have effect on price as the proprty owner need to pay for extra electricity bill. Elevator may drive the total electricity cost of the property so it may rise the rental cost. 
+         has_elevator = as.numeric(factor(str_detect(amenities, "Elevator")))-1,
+         has_airconditioner = as.numeric(factor(str_detect(amenities, "Air conditioning")))-1,
+         has_gym_pool = as.numeric(factor(str_detect(amenities, "Gym")|str_detect(amenities, "Pool")))-1,
+         has_kitchen = as.numeric(factor(str_detect(amenities, "Kitchen")|str_detect(amenities, "Stove")))-1,
+         
+# We create the column from the description column that whether the property near BTS or MRT ( public transportation in Thailand)  or not , if it near public transportation =1 , not near public transportation =0 
+         near_BTS_MRT = as.numeric(factor(str_detect(description, "BTS")|str_detect(description, "MRT")))-1,
+         near_river = as.numeric(factor(str_detect(description, "river")|str_detect(description, "River")))-1,
+         near_park = as.numeric(factor(str_detect(description, "park")|str_detect(description, "Park")))-1)
+
+```
+
+```{r dividing training and testing set}
+set.seed(1234)
+
+train_test_split <- initial_split(data_reg, prop = 0.7)
+train <- training(train_test_split)
+test <- testing(train_test_split)
+```
+
+## Modelling
+### Basic models following the instructions
+```{r model1: prop_type_simplified number_of_reviews and review_scores_rating}
+model1 <- lm(lg_price_4_nights ~ prop_type_simplified + number_of_reviews + review_scores_rating, data = train)
+
+summary(model1)
+```
+> R-square, the coefficient of determination of the multiple linear regression model (with a constant term) is the ratio of the total variance explained by model to the total variance of the data. Despite a small R-square of 0.3% the model is significant as some p-values remain low for the coefficient prop_type_simplified and review_scores rating.  The p-value for each independent variable tests the null hypothesis that the variable has no correlation with the dependent variable. The lower the p-value, the greater the statistical significance of the observed difference. The smaller the p-value, the higher the chance there is a correlation between the changes in the independent variable and the shifts in the dependent variable. As a result, you can reject H0 that states there is no correlation between the variables at a (1-alpha) confidence level. Nonetheless, you cannot say for sure that H1 is true. You can only estimate the confidence level of your data. 
+> As we explain earlier, the number of reviews is not significant because we don't know if the review is positive or negative so we cannot predict the impact on prices. However, the review_scores_rating is very significant at a 96% confidence interval but is negatively correlated to the price. It seems weird at first as we would have thought the higher the score rating the higher the price. Maybe it is due to the fact that in Thailand, a lot of accomodations are cheap and result in a good rating which could inverse the first intuition. 
+> In conclusion, the model is significant despite a small r-square. As a lot of variables explain the price movements, it is difficult to measure the exact impact of only 3 variables which results in a smaller r-square. 
+
+- Interpret the coefficient `review_scores_rating` in terms of `price_4_nights`.
+> If the number of scores rating increases by 1, it will mean the price_4_nights will decrease by 0.011. If we write the equation we will have a delta of 1 = (-0.011)x1. 
+
+- Interpret the coefficient of `prop_type_simplified` in terms of `price_4_nights`.
+> If the number of scores rating increases by 1, it will mean the price_4_nights will increase by 0.009. If we write the equation we will have a delta of 1 = (0.009)x1. 
+
+```{r model2: room_type}
+model2 <- lm(lg_price_4_nights ~ prop_type_simplified + number_of_reviews + review_scores_rating + room_type, data = train)
+
+summary(model2)
+```
+> The R-squared again is very small but will significant variables. The property type and the room type are very significant to a 99% confidence interval. The room type is very significant as well and negatively correlate to the prices which makes sense as we ranked the data from private room to share rooms. We already explain this result earlier but we can now see it is very significant in our model. The number of reviews remains not significant (as explained earlier) and the review_scores_rating is still significant at 97% confidence interval. 
+> We increased the number of variables here which increased the r-squared as well. this confirms, that the size of the R-squared is mainly due to the fact that there are a lot of variables that explain the prices, so if we increase the number of variables, we might exert upward pressure on the R-squared. 
+
+Our dataset has many more variables, so here are some ideas on how you can extend your analysis
+
+1. Are the number of `bathrooms`, `bedrooms`, `beds`, or size of the house (`accomodates`) significant predictors of `price_4_nights`? Or might these be co-linear variables? 
+1. Do superhosts `(host_is_superhost`) command a pricing premium, after controlling for other variables?
+1. Some hosts allow you to immediately book their listing (`instant_bookable == TRUE`), while a non-trivial proportion don't. After controlling for other variables, is `instant_bookable` a significant predictor of `price_4_nights`?
+1. For all cities, there are 3 variables that relate to neighbourhoods: `neighbourhood`, `neighbourhood_cleansed`, and `neighbourhood_group_cleansed`. There are typically more than 20 neighbourhoods in each city, and it wouldn't make sense to include them all in your model. Use your city knowledge, or ask someone with city knowledge, and see whether you can group neighbourhoods together so the majority of listings falls in fewer (5-6 max) geographical areas. You would thus need to create a new categorical variabale `neighbourhood_simplified` and determine whether location is a predictor of `price_4_nights`
+1. What is the effect of `availability_30` or `reviews_per_month` on `price_4_nights`, after we control for other variables?
+
+```{r model3: host_is_superhost}
+model3 <- lm(lg_price_4_nights ~ prop_type_simplified + number_of_reviews + review_scores_rating + room_type + host_is_superhost, data = train)
+
+summary(model3)
+```
+> we added some variables to increase the R-squared. However, we added host_is_superhost which is not significant (as we explained early in the vizualisation part), that is why the r-squared does not increase that much. 
+
+```{r model4: instant_bookable}
+model4 <- lm(lg_price_4_nights ~ prop_type_simplified + number_of_reviews + review_scores_rating + room_type + instant_bookable, data = train)
+
+summary(model4)
+```
+> we added some variables to increase the R-squared. We added instant_bookable which is  significant at a 98% confidence internval, that is why the r-squared does  increase a little bit.  
+
+```{r model5: city_center}
+# we group by the neighborhood by a categorical variable city_center
+model5 <- lm(lg_price_4_nights ~ prop_type_simplified + number_of_reviews + review_scores_rating + room_type + city_center, data = train)
+
+summary(model5)
+```
+> Here we added the city_center variable with is very significant in our analysis of prices. We can see that it has increased r-squared as well. City_center is positively correlated with prices which makes sense, as the more the house in the city center, the more expensive it will be. 
+
+```{r model6: availability_30}
+# we group by the neighborhood by a categorical variable city_center
+model6 <- lm(lg_price_4_nights ~ prop_type_simplified + number_of_reviews + review_scores_rating + room_type + availability_30, data = train)
+
+summary(model6)
+```
+> We added availability_30 to the model which is not significant. As a result, we decreased the overall significance of the model. 
+
+```{r reviews_per_month}
+model7 <- lm(lg_price_4_nights ~ prop_type_simplified + number_of_reviews + review_scores_rating + room_type + reviews_per_month, data = train)
+
+summary(model7)
+```
+> Reviews_per_month is not significant which also decreases the overall quality of the model. 
+
+### Our own models
+```{r model8: Full model with all variables we are interested in}
+model8 <- lm(lg_price_4_nights ~ prop_type_simplified + number_of_reviews + review_scores_rating + host_is_superhost + host_identity_verified + host_listings_count + room_type + beds + city_center + has_elevator + has_airconditioner + near_BTS_MRT + instant_bookable + availability_30 + len_amenities + has_gym_pool + has_kitchen + near_river + near_park, data = train)
+
+summary(model8)
+```
+> In our model, we have selected only variables that we think are significant. We can see indeed that the overall R-square increased a lot because we incorporate more variables but more variables significant.
+> Number of beds is very significant as well as we have seen in the vizualisation part, the more beds are in a property, the more people you can welcome, the higher the price. 
+> City center is very significant as it is one of the most important variables in the analysis of prices. The variables has gym pool, has kitchen etc. also positively impact the prices as the flat is more furnished in those cases. 
+> Paradoxically, the airconditionner is negatively correlated by 7% to the prices. It is due to the fact that 90% of the flat in our samples has air conditonners, so it is very difficult to estimate the true link between air conditionner and prices. The property that does not have air con maybe the premium properties for example tree houses, more expensive, does not have air con. It is impossible to draw an accurate conclusion as the premimum listings does not have air con why all the other ones have air con. 
+> Near_river is very significant and increases prices because there is only one iconic river in the city that is why it has a large impact on prices. On the other hand, near park is not significant at all as there are a lot of parks in Bangkok so it does not matter if you are next to a specific park or not. 
+> Also paradoxical to see that has_elevator is negativey correlated to the price. It could be due to the fact that there is an elevator if there are a lot of properties in the same building whereas premium listings will not be in big buildings, and will have less properties in the building. As we said earlier, it also depends on where the property is on the building.
+> We would have thought near_BTS_MRT would have had a positive negative. It is due that Bangkok has extended the network of public transporations whereas before, there was only 10 stations not more than 80, which are not located in the city center. That is why being close to a public transportation could mean the property is located outside of the city center. 
+> instant bookable is significant but the coefficient is very small and negative. It is negative because if the property can be booked instantly it means the quality is lower than a premium listing where you cannot book instantly and you have to send your personal details to the host so that the host can check your profile. 
+> Overall, we have increased the significance of our model by including more significant variables. It is however hard to explain the link between the prices. We still notice that each correlation coefficient are very small in absolute values, as each variable makes a small impact on prices. There is no correlation coefficient that looks higher than the other which means there is almost an equal contribution to the prices for each variable. 
+
+```{r model9: Stepwise Regression}
+model0 <- lm(lg_price_4_nights~1,data=train)
+model9 <- step(model0, scope=list(upper=~prop_type_simplified + number_of_reviews + review_scores_rating + host_is_superhost + host_identity_verified + host_listings_count + room_type + beds + city_center + has_elevator + has_airconditioner + near_BTS_MRT + instant_bookable + availability_30 + availability_90 + len_amenities + has_gym_pool + has_kitchen + near_river, lower=~1), direction="forward")
+
+summary(model9)
+```
+> This method regression automatically chooses the variable that are significants to increase the overall significance of the model. Indeed, we see that the r-squared is much more higher than in the previous model with confirms our first hypothesis. In model 8, we choose the variables that we thought were significant. Here we created a model that automatically selects the variables that do have an impact on prices. 
+> Previously, we choose a lot of significant variables but for exampel we did not computed len_amenities which have an impact on prices. 
+> The more variables we have in the model, the higher is the R-squared but the lower is the coefficent correlation as we add a lot of variables in the equation, we may face problem of over fitting which is the multi colinearity problem.  
+
+
+## Diagnostics, collinearity, summary tables
+
+As you keep building your models, it makes sense to:
+
+1. Check the residuals, using `autoplot(model_x)`
+1. As you start building models with more explanatory variables, make sure you use `car::vif(model_x)`` to calculate the **Variance Inflation Factor (VIF)** for your predictors and determine whether you have colinear variables. A general guideline is that a VIF larger than 5 or 10 is large, and your model may suffer from collinearity. Remove the variable in question and run your model again without it.
+
+
+
+1. Create a summary table, using `huxtable` (https://mfa2022.netlify.app/example/modelling_side_by_side_tables/) that shows which models you worked on, which predictors are significant, the adjusted $R^2$, and the Residual Standard Error.
+1. Finally, you must use the best model you came up with for prediction. Suppose you are planning to visit the city you have been assigned to over reading week, and you want to stay in an Airbnb. Find Airbnb's in your destination city that are apartments with a private room, have at least 10 reviews, and an average rating of at least 90. Use your best model to predict the total cost to stay at this Airbnb for 4 nights. Include the appropriate 95% interval with your prediction. Report the point prediction and interval in terms of `price_4_nights`. 
+  - if you used a log(price_4_nights) model, make sure you anti-log to convert the value in $. You can read more about [hot to interpret a regression model when some variables are log transformed here](https://stats.idre.ucla.edu/other/mult-pkg/faq/general/faqhow-do-i-interpret-a-regression-model-when-some-variables-are-log-transformed/)
+  
+```{r anova}
+anova(model8, model9)
+```
+> Implications from ANOVA: P-value for Chi-square comparison is large, meaning that we cannot reject the null hypothesis of the two models don't have significant differences. It means we can choose the model we want. In this case, we will proceed with model9 as it is more accurate. 
+
+```{r VIF}
+vif(model9)
+```
+
+```{r check residuals}
+autoplot(model9)+
+  theme_economist()
+```
+> The normal Q-Q shows us that the residual are normalized. If the residuals were not normal, the regression linearity will be challenged. Here we don't have serious problem with normality which means our model is accurate. 
+
+
+```{r comparing models}
+huxreg(list("model1" = model1, "model2" = model2, "model3" = model3, "model4" = model4,"model5" = model5, "model6" = model6, "model7" = model7, "model8" = model8,"model9"=model9))
+```
+
+```{r overfitting}
+rmse_train <- train %>% 
+  mutate(predictions = predict(model9,.)) %>% 
+  select(predictions, lg_price_4_nights) %>% 
+  mutate(squared_error = (predictions - lg_price_4_nights)^2) %>% 
+  summarise(rmse = sqrt(mean(squared_error))) %>% 
+  pull()
+
+rmse_train
+
+rmse_test <- test %>% 
+  mutate(predictions = predict(model9,.)) %>% 
+  select(predictions, lg_price_4_nights) %>% 
+  mutate(squared_error = (predictions - lg_price_4_nights)^2) %>% 
+  summarise(rmse = sqrt(mean(squared_error))) %>% 
+  pull()
+
+rmse_test
+```
+> The difference between the rmse train and the rmse test is not that high which also means the overall model is accurate.
+
+> Therefore , using the RMSE method and VIF methods we choose model 9. Model 9 has a smaller AIC according to the result of the stepwise regression method. 
+
+We are going to use model9 to predict the price for our target airbnb
+rooms.
+
+The criteria for filtering for targets are:
+
+-   private room
+
+-   number of reviews more than 10
+
+-   review score of rating over 4.8
+
+```{r prediction}
+# filter for target rooms
+target <- data_reg %>%
+  filter(room_type == 2,
+         number_of_reviews >= 10,
+         review_scores_rating >= 4.8)
+
+predict <- 10**(predict.lm(model9,newdata=target, interval="prediction")) %>%
+  kable(caption = "Price Prediction") %>%
+  kable_styling(bootstrap_options = "striped", full_width = F)
+
+predict
+```
+
+We got the prediction results in the table above. Our R-squared is
+relatively small therefore the confidence intervals are wide. The predicted price for targeting rooms (for 4 nights) are from 5059 to 11765 THB.
+
+
+# Deliverables
+
+
+- By midnight on Monday 18 Oct 2021, you must upload on Canvas a short presentation (max 4-5 slides) with your findings, as some groups will be asked to present in class. You should present your Exploratory Data Analysis, as well as your best model. In addition, you must upload on Canvas your final report, written  using R Markdown to introduce, frame, and describe your story and findings. You should include the following in the memo:
+
+1. Executive Summary: Based on your best model, indicate the factors that influence `price_4_nights`.
+This should be written for an intelligent but non-technical audience. All
+other sections can include technical writing.
+2. Data Exploration and Feature Selection: Present key elements of the data, including tables and
+graphs that help the reader understand the important variables in the dataset. Describe how the
+data was cleaned and prepared, including feature selection, transformations, interactions, and
+other approaches you considered.
+3. Model Selection and Validation: Describe the model fitting and validation process used. State
+the model you selected and why they are preferable to other choices.
+4. Findings and Recommendations: Interpret the results of the selected model and discuss
+additional steps that might improve the analysis
+  
+  
+
+Remember to follow R Markdown etiquette rules and style; don't have the Rmd output extraneous messages or warnings, include summary tables in nice tables (use `kableExtra`), and remove any placeholder texts from past Rmd templates; in other words, (i.e. I don't want to see stuff I wrote in your final report.)
+  
+  
+# Rubric
+
+Your work will be assessed on a rubric which you can find here
+
+
+
+# Acknowledgements
+
+- The data for this project is from [insideairbnb.com](insideairbnb.com)

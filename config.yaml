@@ -101,6 +101,10 @@ params:
         subtitle: Be ready...
         title: My favorite movie and director
         url: https://www.youtube.com/watch?v=Z5jvQwwHQNY
+       - image: Bangkok.jpg
+        subtitle: R Studio Project, London Business School
+        title: A model to predict Airbnb prices in Bangkok
+        url: blogs/lbs_3
       - image: corona.jpg
         subtitle: R Studio Project, London Business School
         title: Can we predict recessions?
