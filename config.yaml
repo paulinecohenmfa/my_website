@@ -13,6 +13,8 @@ params:
   blog: {}
   contact:
     formEmail: pcohen.mfa2022@london.edu
+    action: "f/mrgrvljq"
+    method: "POST"
     address:
       - city: Paris
         country: France
