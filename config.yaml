@@ -70,8 +70,10 @@ params:
       - name: Get to know me
         url: https://pauline-portfolio.netlify.app/blogs/resume/
       - name: Blogs
-        title : My various projects
         url: https://pauline-portfolio.netlify.app/blogs/
+        showcase:
+        - title: My various projects
+        
     menu: Menu
     subtitle: By HTML5 Up
     title: Forty
