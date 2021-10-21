@@ -5,7 +5,7 @@ theme: forty
 googleAnalytics: ''
 disqusShortname: ''
 params:
-  banner:
+  banner: 
     buttonText: Get Started
     subtitle: |-
       Welcome to my blog, feel free to reach out if you have questions!
@@ -70,10 +70,7 @@ params:
       - name: Get to know me
         url: https://pauline-portfolio.netlify.app/blogs/resume/
       - name: Blogs
-        url: https://pauline-portfolio.netlify.app/blogs/
-        showcase:
-        - title: My various projects
-        
+        url: blogs
     menu: Menu
     subtitle: By HTML5 Up
     title: Forty
